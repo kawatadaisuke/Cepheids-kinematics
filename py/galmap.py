@@ -16,6 +16,7 @@
 # 4. Plot x-y distribution and the arros of peculiar velocity
 # 
 # History:
+#  23/06/2017 use only galpy velocities
 #  23/06/2017 move to obs/projs/Cepheids-kinematics/py
 #  22/06/2017 add velocity dispersion profile
 #  19/06/2017 ver.3: reading 3 files for G14, Melnik15, DDO16
@@ -52,19 +53,25 @@ feh=star['__Fe_H_']
 dist=np.power(10.0,(star['Mod']+5.0)/5.0)*0.001
 rgalg14=star['Rgal']*0.001
 
-# circular velocity 
-# Reid et al. (2014)
-vcirc=240.0
 # Sun's radius used in Reid et al. (2014)
-xsunr14=-8.34
+# xsunr14=-8.34
+xsunr14=-8.0
 #
 # Sun's proper motion Schoenrich et al.
 usun=11.1
 vsun=12.24
 zsun=7.25
-# Bovylev (2017)
+# Bobylev (2017)
 # usun=7.9
 # vsun=11.73
+# circular velocity 
+# Reid et al. (2014)
+vcirc=240.0
+# Jo Bovy's suggestion
+vcirc=30.24*np.abs(xsunr14)-vsun
+
+print 'vcirc=',vcirc
+
 # degree to radian
 glonrad=glon*np.pi/180.0
 glatrad=glat*np.pi/180.0
@@ -80,7 +87,6 @@ print ' slope, intercept=',slope,intercept
 
 # delta feh
 delfeh=feh-(slope*rgal+intercept)
-
 
 # output ascii data for test
 f=open('cepheidsg14pos.asc','w')
@@ -189,8 +195,10 @@ plt.xticks(fontsize=18)
 plt.yticks(fontsize=18)
 plt.show()
 
+###### read the data with velocity info. #####
+# defaut HRV error
+HRVerr=5.0
 
-# read the data with velocity info.
 infile='/Users/dkawata/work/obs/Cepheids/Genovali14/G14T34+TGAS+Gorynya.fits'
 star_hdus=pyfits.open(infile)
 star=star_hdus[1].data
@@ -273,7 +281,7 @@ pmdecv=np.hstack((pmdecv,star['pmdec']))
 errpmrav=np.hstack((errpmrav,star['pmra_error']))
 errpmdecv=np.hstack((errpmdecv,star['pmdec_error']))
 hrvv=np.hstack((hrvv,star['RV_mean']))
-errhrvv=np.hstack((errhrvv,np.zeros(nstarv3)))
+errhrvv=np.hstack((errhrvv,np.ones(nstarv3)*HRVerr))
 logp=np.hstack((logp,star['logPer']))
 
 # use galpy RA,DEC -> Glon,Glat
@@ -289,91 +297,6 @@ rgalv=np.sqrt(xposv**2+yposv**2)
 delfehv =fehv-(slope*rgalv+intercept)
 pmvconst=4.74047
 
-# convert proper motion to vx,vy with my ugry conversion
-
-# get Cartician position in equatorial coordidate
-# distance in kpc etc. alphao,deltao (radian)
-disto=distv
-alphao=rav*np.pi/180.0
-deltao=decv*np.pi/180.0
-# muao with true arc
-muao=pmrav
-mudo=pmdecv
-vrado=hrvv
-# x,y,z position from the sun's position
-rxy=disto*np.cos(deltao)
-px=rxy*np.cos(alphao)
-py=rxy*np.sin(alphao)
-pz=disto*np.sin(deltao)
-# vx,vy,vz
-# mas/yr -> km/s
-valpha=pmvconst*muao*distv
-vdelta=pmvconst*mudo*distv
-vxy=vrado*np.cos(deltao)-vdelta*np.sin(deltao)
-vx=vxy*np.cos(alphao)-valpha*np.sin(alphao)
-vy=vxy*np.sin(alphao)+valpha*np.cos(alphao)
-vz=vrado*np.sin(deltao)+vdelta*np.cos(deltao)
-
-# convert to galactic coordinate
-# 3 axes in Galactic coordinate
-# North Celestial Pole (z-axis)
-lzeq=np.radians(122.93193212)
-bzeq=np.radians(27.12835496)
-# RA,DEC=0,0 (x-axis)
-lxeq=np.radians(96.33723825)
-bxeq=np.radians(-60.18853909)
-#  RA,DEC=90,0 (y-axis)
-lyeq=np.radians(206.98916373)
-byeq=np.radians(-11.42442440)
-# transformation matrix (though it is array in python)
-tmateqga=np.array([
-  [np.cos(lxeq)*np.cos(bxeq),np.sin(lxeq)*np.cos(bxeq),np.sin(bxeq)],
-  [np.cos(lyeq)*np.cos(byeq),np.sin(lyeq)*np.cos(byeq),np.sin(byeq)],
- [np.cos(lzeq)*np.cos(bzeq),np.sin(lzeq)*np.cos(bzeq),np.sin(bzeq)]
-])
-print 'tmat gal->eq=',tmateqga
-# take inverse
-tmatgaeq=np.linalg.inv(tmateqga)
-print 'tmat eq->gal=',tmatgaeq
-
-print 'tmat gal->eq= %12.9f %12.9f %12.9f' % (tmateqga[0,0],tmateqga[0,1],tmateqga[0,2])
-print '              %12.9f %12.9f %12.9f' % (tmateqga[1,0],tmateqga[1,1],tmateqga[1,2])
-print '              %12.9f %12.9f %12.9f' % (tmateqga[2,0],tmateqga[2,1],tmateqga[2,2])
-
-print 'tmat eq->gal= %12.9f %12.9f %12.9f' % (tmatgaeq[0,0],tmatgaeq[0,1],tmatgaeq[0,2])
-print '              %12.9f %12.9f %12.9f' % (tmatgaeq[1,0],tmatgaeq[1,1],tmatgaeq[1,2])
-print '              %12.9f %12.9f %12.9f' % (tmatgaeq[2,0],tmatgaeq[2,1],tmatgaeq[2,2])
-
-# transfer the coordinate: x-y plane: Cerestial equator -> Galactic plane
-# position
-# position in Galactic cartesian coordinate
-poseqs=np.vstack([px,py,pz])
-# transfer to equatorial cartesian coordinate
-posgas=np.dot(tmatgaeq,poseqs)
-
-# velocity
-# velocity in Galactic cartesian coordinate
-veleqs=np.vstack([vx,vy,vz])
-# transfer to equatorial cartesian coordinate
-velgas=np.dot(tmatgaeq,veleqs)
-
-# reset position and velocity
-px=posgas[0,:]+xsunr14
-py=posgas[1,:]
-pz=posgas[2,:]
-vx=velgas[0,:]+usun
-vy=velgas[1,:]+vsun
-vz=velgas[2,:]
-
-rad=np.sqrt(np.power(px,2)+np.power(py,2))
-
-print ' rmax=',np.max(rad)
-
-# rotation velocity 
-vrot=(vx*py-vy*px)/rad
-# radial velocity 
-vrad=(vx*px+vy*py)/rad
-
 # convert proper motion from mu_alpha,delta to mu_l,b using bovy_coords
 pmlonv=np.zeros(nstarv)
 pmlatv=np.zeros(nstarv)
@@ -386,10 +309,6 @@ distxyv=distv*np.cos(glatradv)
 # pmlonv is pmlon x cons(b) 
 vlonv=pmvconst*pmlonv*distv
 vlatxyv=pmvconst*pmlatv*distv*np.sin(glatradv)
-# vxv=hrvv*np.cos(glonradv)*np.cos(glatradv)-vlonv*np.sin(glonradv) \
-#  -vlatxyv*np.cos(glonradv)+usun
-# vyv=hrvv*np.sin(glonradv)*np.cos(glatradv)+vlonv*np.cos(glonradv) \
-#  -vlatxyv*np.sin(glonradv)+vsun
 # use galpy
 Tvxvyvz=bovy_coords.vrpmllpmbb_to_vxvyvz(hrvv,pmlonv,pmlatv,glonv,glatv,distv,degree=True)
 vxv=Tvxvyvz[:,0]+usun
@@ -441,18 +360,6 @@ tbhdu = pyfits.BinTableHDU.from_columns([\
   pyfits.Column(name='e_HRV',format='D',array=errhrvv), \
   pyfits.Column(name='LogPer',format='D',array=logp)])
 tbhdu.writeto('cepheidspv.fits',clobber=True)
-
-# output ascii data to check consistency between two conversions. 
-# checked on 05/02/2017
-f=open('comps.asc','w')
-i=0
-while i<nstarv:
-  print >>f,"%f %f %f %f %f %f %f %f %f %f %f %f %f %f %f %f" \
-    %(xposv[i],yposv[i] \
-      ,vxv[i],vyv[i],px[i],py[i],vx[i],vy[i],distv[i],rav[i],decv[i] \
-      ,pmrav[i],pmdecv[i],hrvv[i],glonv[i],glatv[i])
-  i+=1
-f.close()
 
 # check proper motion velocity errors
 errpmrav=pmvconst*distv*errpmrav
