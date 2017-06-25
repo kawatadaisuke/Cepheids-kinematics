@@ -3,7 +3,7 @@
 # axsymdiskm-fit.py
 #  fitting axisymmetric disk model to Cepheids kinematics data
 #
-#  23 June 2017 - written D. Kawata
+#  25 June 2017 - written D. Kawata
 #
 
 import pyfits
@@ -64,11 +64,12 @@ def lnlike(modelp,flags,fixvals,n_s,hrv_s,vlon_s,distxy_s,glonrad_s):
     +(vlongal_s-vlonmean_s)**2/vlonsig2_s) \
     -np.log(2.0*np.pi*np.sqrt(hrvsig2_s)*np.sqrt(vlonsig2_s)))
 
+# Reid et al. (2014) "conservative formula"
 #  rhrv2ij=(hrvgal_s-hrvmean_s)**2/hrvsig2_s
 #  rvlon2ij=(vlongal_s-vlonmean_s)**2/vlonsig2_s
-#
 #  lnlk=np.nansum(np.log((1.0-np.exp(-0.5*rhrv2ij))/rhrv2ij) \
 #                 +np.log((1.0-np.exp(-0.5*rvlon2ij))/rvlon2ij))
+
   return lnlk
 
 # define prior
@@ -88,7 +89,10 @@ def lnprior(modelp,flags,fixvals):
     or R0>30.0:
     return -np.inf
 
-  return 0.0
+# Prior for R0 from Bland-Hawthorn & Gerhard (2016) 8.2pm0.1
+  lnp=-(R0-8.2)**2/(0.1**2)-np.log(np.sqrt(2.0*np.pi)*0.1)
+
+  return lnp
 
 # define the final ln probability
 def lnprob(modelp,flags,fixvals,n_s,hrv_s,vlon_s,distxy_s,glonrad_s):
@@ -102,16 +106,16 @@ def lnprob(modelp,flags,fixvals,n_s,hrv_s,vlon_s,distxy_s,glonrad_s):
 ##### main programme start here #####
 
 # flags
-mocktest=True
-# mocktest=False
-# hrhsig_fix=True
-hrhsig_fix=False
+# mocktest=True
+mocktest=False
+hrhsig_fix=True
+# hrhsig_fix=False
 
 # fixed parameter
 hr=3.0
 if hrhsig_fix==True:
 # fix hsig and hr
-  hsig=20.0
+  hsig=200.0
   fixvals=np.zeros(2)
   fixvals[0]=hr
   fixvals[1]=hsig
@@ -227,12 +231,16 @@ distxyv=distv*np.cos(glatradv)
 # pmlonv is pmlon x cons(b) 
 vlonv=pmvconst*pmlonv*distv
 vlatxyv=pmvconst*pmlatv*distv*np.sin(glatradv)
+# z position
+zpos=distv*np.sin(glatradv)
 
 # select only velocity error is small enough
 Verrlim=5.0
 errpmrav=pmvconst*distv*errpmrav
 errpmdecv=pmvconst*distv*errpmdecv
-sindx=np.where(np.sqrt(errpmrav**2+errpmdecv**2+errhrvv**2)<Verrlim)
+sindx=np.where((np.sqrt(errpmrav**2+errpmdecv**2+errhrvv**2)<Verrlim) & \
+               (np.abs(zpos)<0.2))
+# sindx=np.where((np.sqrt(errpmrav**2+errpmdecv**2+errhrvv**2)<Verrlim))
 # 
 hrvs=hrvv[sindx]
 vlons=vlonv[sindx]
@@ -247,7 +255,7 @@ if hrhsig_fix==True:
 # VcR0,Vphsun,Vrsun,sigrR0,Xsq,R0=modelp
   nparam=6
 # initial value
-  modelp0=np.array([240.0, 11.1+240.0, -11.1, 10.0, 2.0, 8.34])
+  modelp0=np.array([240.0, 11.1+240.0, -11.1, 10.0, 1.0, 8.34])
 else:
 # VcR0,Vphsun,Vrsun,sigrR0,hsig,Xsq,R0=modelp
   nparam=7
@@ -349,11 +357,10 @@ sampler = emcee.EnsembleSampler(nwalkers,ndim,lnprob,args=(flags,fixvals \
   ,nstars,hrvs,vlons,distxys,glonrads))
 
 # MCMC run
-sampler.run_mcmc(pos,500)
+sampler.run_mcmc(pos,1000)
 
 # burn in
-samples=sampler.chain[:,100:,:].reshape((-1,ndim))
-# samples=sampler.chain[:,10:,:].reshape((-1,ndim))
+samples=sampler.chain[:,200:,:].reshape((-1,ndim))
 
 # mean and standard deviation
 mpmean=np.zeros(ndim)
@@ -369,13 +376,23 @@ while i<ndim:
 # corner plot
 # VcR0,Vphsun,Vrsun,sigrR0,hsig,Xsq,R0=modelp
 if hrhsig_fix==True:
-  fig = corner.corner(samples, \
-    labels=["$V_c(R_0)$","$V_{\phi,\odot}$","$V_{R,\odot}$", "$\sigma_R(R_0)$", \
-    "$X^2$","$R_0$"],truths=modelp0)
+  if mocktest==True:
+    fig = corner.corner(samples, \
+      labels=["$V_c(R_0)$","$V_{\phi,\odot}$","$V_{R,\odot}$", "$\sigma_R(R_0)$", \
+      "$X^2$","$R_0$"],truths=modelp0)
+  else:
+    fig = corner.corner(samples, \
+      labels=["$V_c(R_0)$","$V_{\phi,\odot}$","$V_{R,\odot}$", "$\sigma_R(R_0)$", \
+      "$X^2$","$R_0$"],truths=mpmean)
 else:
-  fig = corner.corner(samples, \
-    labels=["$V_c(R_0)$","$V_{\phi,\odot}$","$V_{R,\odot}$", "$\sigma_R(R_0)$", \
-    "$h_{\sigma}$","$X^2$","$R_0$"],truths=modelp0)
+  if mocktest==True:
+    fig = corner.corner(samples, \
+      labels=["$V_c(R_0)$","$V_{\phi,\odot}$","$V_{R,\odot}$", "$\sigma_R(R_0)$", \
+      "$h_{\sigma}$","$X^2$","$R_0$"],truths=modelp0)
+  else:
+    fig = corner.corner(samples, \
+      labels=["$V_c(R_0)$","$V_{\phi,\odot}$","$V_{R,\odot}$", "$\sigma_R(R_0)$", \
+      "$h_{\sigma}$","$X^2$","$R_0$"],truths=mpmean)
 
 plt.show()
 
