@@ -40,6 +40,7 @@ def lnlike(modelp,n_s,hrv_s,vlon_s,distxy_s,glonrad_s):
 # calculate parameters at stellar position
   rgal_s=np.sqrt(R0**2+distxy_s**2-2.0*R0*distxy_s*np.cos(glonrad_s))
   phi_s=np.arccos((R0**2+rgal_s**2-distxy_s**2)/(2.0*R0*rgal_s))
+  phi_s[glonrad_s>np.pi]=-phi_s[glonrad_s>np.pi]
 # asymmetric drift
   Vasym_s=0.5*((sigrR0**2)/VcR0)*(Xsq-1.0+rgal_s*(1.0/hr+2.0/hsig))
 # expected mean hrvmean and dispersion
@@ -49,15 +50,15 @@ def lnlike(modelp,n_s,hrv_s,vlon_s,distxy_s,glonrad_s):
   vlonmean_s=(VcR0-Vasym_s)*np.cos(phi_s+glonrad_s)
   vlonsig2_s=(sigrR0**2)*(1.0+(np.cos(phi_s+glonrad_s)**2)*(Xsq-1.0))
 
-#  lnlk=np.nansum(-0.5*((hrvgal_s-hrvmean_s)**2/hrvsig2_s \
-#    +(vlongal_s-vlonmean_s)**2/vlonsig2_s) \
-#    -np.log(2.0*np.pi*np.sqrt(hrvsig2_s)*np.sqrt(vlonsig2_s)))
+  lnlk=np.nansum(-0.5*((hrvgal_s-hrvmean_s)**2/hrvsig2_s \
+    +(vlongal_s-vlonmean_s)**2/vlonsig2_s) \
+    -np.log(2.0*np.pi*np.sqrt(hrvsig2_s)*np.sqrt(vlonsig2_s)))
 
-  rhrv2ij=(hrvgal_s-hrvmean_s)**2/hrvsig2_s
-  rvlon2ij=(vlongal_s-vlonmean_s)**2/vlonsig2_s
-
-  lnlk=np.nansum(np.log((1.0-np.exp(-0.5*rhrv2ij))/rhrv2ij) \
-                 +np.log((1.0-np.exp(-0.5*rvlon2ij))/rvlon2ij))
+#  rhrv2ij=(hrvgal_s-hrvmean_s)**2/hrvsig2_s
+#  rvlon2ij=(vlongal_s-vlonmean_s)**2/vlonsig2_s
+#
+#  lnlk=np.nansum(np.log((1.0-np.exp(-0.5*rhrv2ij))/rhrv2ij) \
+#                 +np.log((1.0-np.exp(-0.5*rvlon2ij))/rvlon2ij))
   return lnlk
 
 # define prior
@@ -84,6 +85,9 @@ def lnprob(modelp,n_s,hrv_s,vlon_s,distxy_s,glonrad_s):
 
 
 ##### main programme start here #####
+
+# flags
+mocktest=True
 
 # read the data with velocity info.
 infile='/Users/dkawata/work/obs/Cepheids/Genovali14/G14T34+TGAS+Gorynya.fits'
@@ -205,56 +209,85 @@ glonrads=glonradv[sindx]
 nstars=len(hrvs)
 print ' number of selected stars=',nstars
 
-# test 
+### model fitting
+# set initial model parameters
 # VcR0,Vphsun,Vrsun,sigrR0,hsig,Xsq,R0=modelp
-VcR0=210.8
-Vphsun=216.8
-Vrsun=-38.3
-sigrR0=34.0
-hsig=340.0
-Xsq=2.0
-R0=9.16
+nparam=7
+modelp0=np.array([240.0, 11.1+240.0, -11.1, 5.0, 20.0, 2.0, 8.34])
+#modelp0=np.array([240.0, 11.1+240.0, -11.1, 5.0, 1.0, 2.0, 8.34])
+modelp=modelp0
 hr=3.0
+
+if mocktest==True:
+# test using mock data
+# target parameters for mock data
+# VcR0,Vphsun,Vrsun,sigrR0,hsig,Xsq,R0=modelp
+  VcR0=modelp0[0]
+  Vphsun=modelp0[1]
+  Vrsun=modelp0[2]
+  sigrR0=modelp0[3]
+  hsig=modelp0[4]
+  Xsq=modelp0[5]
+  R0=modelp0[6]
+  xpos=-R0+np.cos(glonrads)*distxys
+  ypos=np.sin(glonrads)*distxys
+  rgals=np.sqrt(xpos**2+ypos**2)
+# asymmetric drift
+  Vasyms=0.5*((sigrR0**2)/VcR0)*(Xsq-1.0+rgals*(1.0/hr+2.0/hsig))
+
+# reassign hrvs, voons
+  rgals=np.sqrt(xpos**2+ypos**2)
+  sigrs=sigrR0
+  sigphs=np.sqrt(Xsq)*sigrR0
+  vrads=np.random.normal(0.0,sigrs,nstars)
+  vphs=np.random.normal(VcR0-Vasyms,sigphs,nstars)
+# angle from x=0, y=+
+  angs=np.zeros(nstars)
+  angs[ypos>=0]=np.arccos(-xpos[ypos>=0]/rgals[ypos>=0])
+  angs[ypos<0]=2.0*np.pi-np.arccos(-xpos[ypos<0]/rgals[ypos<0])
+  vxs=vphs*np.sin(angs)-vrads*np.cos(angs)
+  vys=vphs*np.cos(angs)+vrads*np.sin(angs)
+# re-set heliocentric velocity
+  hrvs=(vxs+Vrsun)*np.cos(glonrads)+(vys-Vphsun)*np.sin(glonrads)
+  vlons=-(vxs+Vrsun)*np.sin(glonrads)+(vys-Vphsun)*np.cos(glonrads)
+  f=open('mock_input.asc','w')
+  i=0
+  for i in range(nstars):
+    print >>f,"%f %f %f %f %f %f %f %f %f %f %f" %(xpos[i],ypos[i] \
+     ,glonrads[i],rgals[i],vrads[i],vphs[i],angs[i],vxs[i],vys[i] \
+     ,hrvs[i],vlons[i])
+  f.close()
+
+# output hrv and vlon input data and expected values from the above parameters
 # line-of-sight velocity
-hrvgals=hrvs-Vrsun*np.cos(glonrads)+Vphsun*np.sin(glonrads)
+  hrvgals=hrvs-Vrsun*np.cos(glonrads)+Vphsun*np.sin(glonrads)
 # longitude velocity
-vlongals=vlons+Vrsun*np.sin(glonrads)+Vphsun*np.cos(glonrads)
+  vlongals=vlons+Vrsun*np.sin(glonrads)+Vphsun*np.cos(glonrads)
 # for i in range(nstars):
 #  if glonrads[i]<np.pi:
 #    vlongals[i]=vlons[i]+Vrsun*np.sin(glonrads[i])+Vphsun*np.cos(glonrads[i])
 #  else:
 #    vlongals[i]=vlons[i]-Vrsun*np.sin(glonrads[i])+Vphsun*np.cos(glonrads[i])
 # calculate parameters at stellar position
-rgals=np.sqrt(R0**2+distxys**2-2.0*R0*distxys*np.cos(glonrads))
-phis=np.arccos((R0**2+rgals**2-distxys**2)/(2.0*R0*rgals))
-# asymmetric drift
-Vasyms=0.5*((sigrR0**2)/VcR0)*(Xsq-1.0+rgals*(1.0/hr+2.0/hsig))
+  rgals=np.sqrt(R0**2+distxys**2-2.0*R0*distxys*np.cos(glonrads))
+  phis=np.arccos((R0**2+rgals**2-distxys**2)/(2.0*R0*rgals))
+  phis[ypos<0]=-phis[ypos<0]
 # expected mean hrvmean and dispersion
-hrvmeans=(VcR0-Vasyms)*np.sin(phis+glonrads)
-hrvsig2s=(sigrR0**2)*(1.0+(np.sin(phis+glonrads)**2)*(Xsq-1.0))
+  hrvmeans=(VcR0-Vasyms)*np.sin(phis+glonrads)
+  hrvsig2s=(sigrR0**2)*(1.0+(np.sin(phis+glonrads)**2)*(Xsq-1.0))
 # expected mean vlonmean and dispersion
-vlonmeans=(VcR0-Vasyms)*np.cos(phis+glonrads)
-vlonsig2s=(sigrR0**2)*(1.0+(np.cos(phis+glonrads)**2)*(Xsq-1.0))
-
-xpos=-R0+np.cos(glonrads)*distxys
-ypos=np.sin(glonrads)*distxys
+  vlonmeans=(VcR0-Vasyms)*np.cos(phis+glonrads)
+  vlonsig2s=(sigrR0**2)*(1.0+(np.cos(phis+glonrads)**2)*(Xsq-1.0))
 
 # output ascii data for test
-f=open('test.asc','w')
-i=0
-for i in range(nstars):
-  print >>f,"%f %f %f %f %f %f %f %f %f %f %f %f %f %f %f" %(xpos[i],ypos[i] \
-   ,glonrads[i],np.sqrt(xpos[i]**2+ypos[i]**2),hrvs[i],vlons[i],hrvgals[i],vlongals[i] \
-   ,rgals[i],phis[i],Vasyms[i],hrvmeans[i],np.sqrt(hrvsig2s[i]) \
-   ,vlonmeans[i],np.sqrt(vlonsig2s[i]))
-f.close()
-
-### model fitting
-# set initial model parameters
-# VcR0,Vphsun,Vrsun,sigrR0,hsig,Xsq,R0=modelp
-nparam=7
-modelp0=np.array([240.0, 11.1+240.0, -11.1, 5.0, 20.0, 2.0, 8.34])
-modelp=modelp0
+  f=open('hrvvlonmean_test.asc','w')
+  i=0
+  for i in range(nstars):
+    print >>f,"%f %f %f %f %f %f %f %f %f %f %f %f %f %f %f" %(xpos[i],ypos[i] \
+     ,glonrads[i],rgals[i],hrvs[i],vlons[i],hrvgals[i],vlongals[i] \
+     ,rgals[i],phis[i],Vasyms[i],hrvmeans[i],np.sqrt(hrvsig2s[i]) \
+     ,vlonmeans[i],np.sqrt(vlonsig2s[i]))
+  f.close()
 
 # initial likelihood
 lnlikeini=lnprob(modelp,nstars,hrvs,vlons,distxys,glonrads)
