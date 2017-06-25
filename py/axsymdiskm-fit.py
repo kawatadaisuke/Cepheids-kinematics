@@ -104,8 +104,8 @@ def lnprob(modelp,flags,fixvals,n_s,hrv_s,vlon_s,distxy_s,glonrad_s):
 # flags
 mocktest=True
 # mocktest=False
-hrhsig_fix=True
-
+# hrhsig_fix=True
+hrhsig_fix=False
 
 # fixed parameter
 hr=3.0
@@ -115,9 +115,11 @@ if hrhsig_fix==True:
   fixvals=np.zeros(2)
   fixvals[0]=hr
   fixvals[1]=hsig
+  print ' fixed valuse hr,hsig=',hr,hsig
 else:
   fixvals=np.zeros(1)
   fixvals[0]=hr
+  print ' fixed valuse hr=',hr
 
 # read the data with velocity info.
 infile='/Users/dkawata/work/obs/Cepheids/Genovali14/G14T34+TGAS+Gorynya.fits'
