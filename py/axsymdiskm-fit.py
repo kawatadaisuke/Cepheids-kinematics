@@ -69,7 +69,7 @@ def lnprior(modelp):
   
   if VcR0<200.0 or VcR0>270.0 or Vphsun<200.0 or Vphsun>270.0 \
     or np.abs(Vrsun)>50.0 or sigrR0<0.0 or sigrR0>40.0 \
-    or hsig<1.0 or Xsq<0.0 or Xsq>10.0 or R0<6.0 \
+    or hsig<1.0 or hsig>800.0 or Xsq<0.0 or Xsq>10.0 or R0<6.0 \
     or R0>10.0:
     return -np.inf
 
@@ -213,7 +213,7 @@ print ' number of selected stars=',nstars
 # set initial model parameters
 # VcR0,Vphsun,Vrsun,sigrR0,hsig,Xsq,R0=modelp
 nparam=7
-modelp0=np.array([240.0, 11.1+240.0, -11.1, 5.0, 20.0, 2.0, 8.34])
+modelp0=np.array([240.0, 11.1+240.0, -11.1, 5.0, 4.0, 2.0, 8.34])
 #modelp0=np.array([240.0, 11.1+240.0, -11.1, 5.0, 1.0, 2.0, 8.34])
 modelp=modelp0
 hr=3.0
