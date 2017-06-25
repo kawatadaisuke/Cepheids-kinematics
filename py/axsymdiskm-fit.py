@@ -18,12 +18,22 @@ import emcee
 import corner
 
 # define likelihood, constant Vc, sigR, Xsq
-def lnlike(modelp,n_s,hrv_s,vlon_s,distxy_s,glonrad_s):
+def lnlike(modelp,flags,fixvals,n_s,hrv_s,vlon_s,distxy_s,glonrad_s):
   
-# model parameter
-  VcR0,Vphsun,Vrsun,sigrR0,hsig,Xsq,R0=modelp
+# read flags
+  hrhsig_fix=flags
+# fixed parameters
+  if hrhsig_fix==True:
 # radial density scale length is fixed
-  hr=3.0
+    hr=fixvals[0]
+# radial velocity dispersion scale length is fixed
+    hsig=fixvals[1]
+# model parameter
+    VcR0,Vphsun,Vrsun,sigrR0,Xsq,R0=modelp
+  else:
+    hr=fixvals[0]
+# model parameter
+    VcR0,Vphsun,Vrsun,sigrR0,hsig,Xsq,R0=modelp
 
 # stellar velocity in Galactic rest frame
 # line-of-sight velocity
@@ -62,32 +72,52 @@ def lnlike(modelp,n_s,hrv_s,vlon_s,distxy_s,glonrad_s):
   return lnlk
 
 # define prior
-def lnprior(modelp):
+def lnprior(modelp,flags,fixvals):
 
 # model parameter
-  VcR0,Vphsun,Vrsun,sigrR0,hsig,Xsq,R0=modelp
+  hrhsig_fix=flags
+  if hrhsig_fix==True: 
+    hsig=fixvals[1]
+    VcR0,Vphsun,Vrsun,sigrR0,Xsq,R0=modelp
+  else:
+    VcR0,Vphsun,Vrsun,sigrR0,hsig,Xsq,R0=modelp
   
-  if VcR0<200.0 or VcR0>270.0 or Vphsun<200.0 or Vphsun>270.0 \
-    or np.abs(Vrsun)>50.0 or sigrR0<0.0 or sigrR0>40.0 \
-    or hsig<1.0 or hsig>800.0 or Xsq<0.0 or Xsq>10.0 or R0<6.0 \
-    or R0>10.0:
+  if VcR0<150.0 or VcR0>350.0 or Vphsun<150.0 or Vphsun>350.0 \
+    or np.abs(Vrsun)>100.0 or sigrR0<0.0 or sigrR0>100.0 \
+    or hsig<0.0 or hsig>800.0 or Xsq<0.0 or Xsq>100.0 or R0<0.0 \
+    or R0>30.0:
     return -np.inf
 
   return 0.0
 
 # define the final ln probability
-def lnprob(modelp,n_s,hrv_s,vlon_s,distxy_s,glonrad_s):
+def lnprob(modelp,flags,fixvals,n_s,hrv_s,vlon_s,distxy_s,glonrad_s):
 
-  lp=lnprior(modelp)
+  lp=lnprior(modelp,flags,fixvals)
   if not np.isfinite(lp):
     return -np.inf
-  return lp+lnlike(modelp,n_s,hrv_s,vlon_s,distxy_s,glonrad_s)
+  return lp+lnlike(modelp,flags,fixvals,n_s,hrv_s,vlon_s,distxy_s,glonrad_s)
 
 
 ##### main programme start here #####
 
 # flags
 mocktest=True
+# mocktest=False
+hrhsig_fix=True
+
+
+# fixed parameter
+hr=3.0
+if hrhsig_fix==True:
+# fix hsig and hr
+  hsig=20.0
+  fixvals=np.zeros(2)
+  fixvals[0]=hr
+  fixvals[1]=hsig
+else:
+  fixvals=np.zeros(1)
+  fixvals[0]=hr
 
 # read the data with velocity info.
 infile='/Users/dkawata/work/obs/Cepheids/Genovali14/G14T34+TGAS+Gorynya.fits'
@@ -211,24 +241,35 @@ print ' number of selected stars=',nstars
 
 ### model fitting
 # set initial model parameters
+if hrhsig_fix==True:
+# VcR0,Vphsun,Vrsun,sigrR0,Xsq,R0=modelp
+  nparam=6
+# initial value
+  modelp0=np.array([240.0, 11.1+240.0, -11.1, 10.0, 2.0, 8.34])
+else:
 # VcR0,Vphsun,Vrsun,sigrR0,hsig,Xsq,R0=modelp
-nparam=7
-modelp0=np.array([240.0, 11.1+240.0, -11.1, 5.0, 4.0, 2.0, 8.34])
-#modelp0=np.array([240.0, 11.1+240.0, -11.1, 5.0, 1.0, 2.0, 8.34])
+  nparam=7
+# initial value
+  modelp0=np.array([240.0, 11.1+240.0, -11.1, 5.0, 8.0, 2.0, 8.34])
+
 modelp=modelp0
-hr=3.0
+
 
 if mocktest==True:
 # test using mock data
 # target parameters for mock data
-# VcR0,Vphsun,Vrsun,sigrR0,hsig,Xsq,R0=modelp
   VcR0=modelp0[0]
   Vphsun=modelp0[1]
   Vrsun=modelp0[2]
   sigrR0=modelp0[3]
-  hsig=modelp0[4]
-  Xsq=modelp0[5]
-  R0=modelp0[6]
+  if hrhsig_fix==True:
+    Xsq=modelp0[4]
+    R0=modelp0[5]
+  else:
+    hsig=modelp0[4]
+    Xsq=modelp0[5]
+    R0=modelp0[6]
+
   xpos=-R0+np.cos(glonrads)*distxys
   ypos=np.sin(glonrads)*distxys
   rgals=np.sqrt(xpos**2+ypos**2)
@@ -290,7 +331,8 @@ if mocktest==True:
   f.close()
 
 # initial likelihood
-lnlikeini=lnprob(modelp,nstars,hrvs,vlons,distxys,glonrads)
+flags=hrhsig_fix
+lnlikeini=lnprob(modelp,flags,fixvals,nstars,hrvs,vlons,distxys,glonrads)
 
 print ' Initial parameters=',modelp
 print ' Initial ln likelihood=',lnlikeini
@@ -301,8 +343,8 @@ ndim,nwalkers=nparam,100
 pos=[modelp+1.0e-3*np.random.randn(ndim) for i in range(nwalkers)]
 
 # set up the sampler
-sampler = emcee.EnsembleSampler(nwalkers,ndim,lnprob,args=(nstars, \
-  hrvs,vlons,distxys,glonrads))
+sampler = emcee.EnsembleSampler(nwalkers,ndim,lnprob,args=(flags,fixvals \
+  ,nstars,hrvs,vlons,distxys,glonrads))
 
 # MCMC run
 sampler.run_mcmc(pos,500)
@@ -324,9 +366,14 @@ while i<ndim:
 
 # corner plot
 # VcR0,Vphsun,Vrsun,sigrR0,hsig,Xsq,R0=modelp
-fig = corner.corner(samples, \
-  labels=["$V_c(R_0)$","$V_{\phi,\odot}$","$V_{R,\odot}$", "$\sigma_R(R_0)$", \
-     "$h_{\sigma}$","$X^2$","$R_0$"],truths=modelp0)
+if hrhsig_fix==True:
+  fig = corner.corner(samples, \
+    labels=["$V_c(R_0)$","$V_{\phi,\odot}$","$V_{R,\odot}$", "$\sigma_R(R_0)$", \
+    "$X^2$","$R_0$"],truths=modelp0)
+else:
+  fig = corner.corner(samples, \
+    labels=["$V_c(R_0)$","$V_{\phi,\odot}$","$V_{R,\odot}$", "$\sigma_R(R_0)$", \
+    "$h_{\sigma}$","$X^2$","$R_0$"],truths=modelp0)
 
 plt.show()
 
