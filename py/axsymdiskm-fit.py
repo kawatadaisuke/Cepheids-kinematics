@@ -89,8 +89,11 @@ def lnprior(modelp,flags,fixvals):
     or R0>30.0:
     return -np.inf
 
+  lnp=0.0
 # Prior for R0 from Bland-Hawthorn & Gerhard (2016) 8.2pm0.1
-  lnp=-(R0-8.2)**2/(0.1**2)-np.log(np.sqrt(2.0*np.pi)*0.1)
+  R0prior=8.2
+  R0prior_sig=0.1
+  lnp=-(R0-R0prior)**2/(R0prior_sig**2)-np.log(np.sqrt(2.0*np.pi)*R0prior_sig)
 
   return lnp
 
@@ -183,35 +186,38 @@ errhrvv=np.hstack((errhrvv,star['e_HRV']))
 logp=np.hstack((logp,star['logPer']))
 
 # read the 3rd data
-infile='/Users/dkawata/work/obs/Cepheids/Genovali14/G14T34+TGAS+DDO16-Gorynya-Melnik15.fits'
+addDDO=True
+# addDDO=False
+if addDDO==True:
+  infile='/Users/dkawata/work/obs/Cepheids/Genovali14/G14T34+TGAS+DDO16-Gorynya-Melnik15.fits'
 # default HRV error
-HRVerr=2.0
-star_hdus=pyfits.open(infile)
-star=star_hdus[1].data
-star_hdus.close()
+  HRVerr=2.0
+  star_hdus=pyfits.open(infile)
+  star=star_hdus[1].data
+  star_hdus.close()
 # number of data points
-nstarv3=len(star['Mod'])
-print 'number of stars from 3rd file =',nstarv3
-nstarv=nstarv1+nstarv2+nstarv3
-print 'total number of stars =',nstarv
+  nstarv3=len(star['Mod'])
+  print 'number of stars from 3rd file =',nstarv3
+  nstarv=nstarv1+nstarv2+nstarv3
+  print 'total number of stars =',nstarv
 # name
-name=np.hstack((name,star['Name']))
+  name=np.hstack((name,star['Name']))
 # extract the necessary particle info
-glonv=np.hstack((glonv,star['_Glon']))
-glatv=np.hstack((glatv,star['_Glat']))
+  glonv=np.hstack((glonv,star['_Glon']))
+  glatv=np.hstack((glatv,star['_Glat']))
 # rescaled Fe/H
-fehv=np.hstack((fehv,star['__Fe_H_']))
-distv=np.hstack((distv,np.power(10.0,(star['Mod']+5.0)/5.0)*0.001))
+  fehv=np.hstack((fehv,star['__Fe_H_']))
+  distv=np.hstack((distv,np.power(10.0,(star['Mod']+5.0)/5.0)*0.001))
 # RA, DEC from Gaia data
-rav=np.hstack((rav,star['_RA']))
-decv=np.hstack((decv,star['_DE']))
-pmrav=np.hstack((pmrav,star['pmra']))
-pmdecv=np.hstack((pmdecv,star['pmdec']))
-errpmrav=np.hstack((errpmrav,star['pmra_error']))
-errpmdecv=np.hstack((errpmdecv,star['pmdec_error']))
-hrvv=np.hstack((hrvv,star['RV_mean']))
-errhrvv=np.hstack((errhrvv,np.ones(nstarv3)*HRVerr))
-logp=np.hstack((logp,star['logPer']))
+  rav=np.hstack((rav,star['_RA']))
+  decv=np.hstack((decv,star['_DE']))
+  pmrav=np.hstack((pmrav,star['pmra']))
+  pmdecv=np.hstack((pmdecv,star['pmdec']))
+  errpmrav=np.hstack((errpmrav,star['pmra_error']))
+  errpmdecv=np.hstack((errpmdecv,star['pmdec_error']))
+  hrvv=np.hstack((hrvv,star['RV_mean']))
+  errhrvv=np.hstack((errhrvv,np.ones(nstarv3)*HRVerr))
+  logp=np.hstack((logp,star['logPer']))
 
 # use galpy RA,DEC -> Glon,Glat
 # Tlb=bovy_coords.radec_to_lb(rav,decv,degree=True,epoch=2000.0)
@@ -235,7 +241,8 @@ vlatxyv=pmvconst*pmlatv*distv*np.sin(glatradv)
 zpos=distv*np.sin(glatradv)
 
 # select only velocity error is small enough
-Verrlim=5.0
+# Verrlim=5.0
+Verrlim=10.0
 errpmrav=pmvconst*distv*errpmrav
 errpmdecv=pmvconst*distv*errpmdecv
 sindx=np.where((np.sqrt(errpmrav**2+errpmdecv**2+errhrvv**2)<Verrlim) & \
