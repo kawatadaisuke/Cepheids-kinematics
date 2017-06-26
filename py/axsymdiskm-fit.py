@@ -136,6 +136,7 @@ hr=3.0
 if hrhsig_fix==True:
 # fix hsig and hr
   hsig=200.0
+#  hsig=4.0
   fixvals=np.zeros(3)
   fixvals[0]=hr
   fixvals[1]=hsig
@@ -298,7 +299,7 @@ if hrhsig_fix==True:
 # VcR0,Vphsun,Vrsun,sigrR0,Xsq,R0,hrvsys=modelp
     nparam=7
 # initial value
-    modelp0=np.array([240.0, 11.1+240.0, -11.1, 10.0, 1.0, 8.34, -2.0])
+    modelp0=np.array([237.2, 248.8, -8.2, 13.5, 0.87, 8.20, -3.0])
   else:
 # VcR0,Vphsun,Vrsun,sigrR0,Xsq,R0=modelp
     nparam=6
@@ -312,31 +313,31 @@ else:
 
 modelp=modelp0
 
+# assign initial values for test output
+# these will be used for target parameters for mock data
+VcR0=modelp0[0]
+Vphsun=modelp0[1]
+Vrsun=modelp0[2]
+sigrR0=modelp0[3]
+if hrhsig_fix==True:
+  Xsq=modelp0[4]
+  R0=modelp0[5]
+  if hrvsys_fit==True:
+    hrvsys=modelp0[6]
+else:
+  hsig=modelp0[4]
+  Xsq=modelp0[5]
+  R0=modelp0[6]
+
+xpos=-R0+np.cos(glonrads)*distxys
+ypos=np.sin(glonrads)*distxys
+rgals=np.sqrt(xpos**2+ypos**2)
+# asymmetric drift
+Vasyms=0.5*((sigrR0**2)/VcR0)*(Xsq-1.0+rgals*(1.0/hr+2.0/hsig))
+
 if mocktest==True:
 # test using mock data
-# target parameters for mock data
-  VcR0=modelp0[0]
-  Vphsun=modelp0[1]
-  Vrsun=modelp0[2]
-  sigrR0=modelp0[3]
-  if hrhsig_fix==True:
-    Xsq=modelp0[4]
-    R0=modelp0[5]
-    if hrvsys_fit==True:
-      hrvsys=modelp0[6]
-  else:
-    hsig=modelp0[4]
-    Xsq=modelp0[5]
-    R0=modelp0[6]
-
-  xpos=-R0+np.cos(glonrads)*distxys
-  ypos=np.sin(glonrads)*distxys
-  rgals=np.sqrt(xpos**2+ypos**2)
-# asymmetric drift
-  Vasyms=0.5*((sigrR0**2)/VcR0)*(Xsq-1.0+rgals*(1.0/hr+2.0/hsig))
-
 # reassign hrvs, voons
-  rgals=np.sqrt(xpos**2+ypos**2)
   sigrs=sigrR0
   sigphs=np.sqrt(Xsq)*sigrR0
   vrads=np.random.normal(0.0,sigrs,nstars)
@@ -360,34 +361,29 @@ if mocktest==True:
 
 # output hrv and vlon input data and expected values from the above parameters
 # line-of-sight velocity
-  hrvgals=hrvs-hrvsys-Vrsun*np.cos(glonrads)+Vphsun*np.sin(glonrads)
+hrvgals=hrvs-hrvsys-Vrsun*np.cos(glonrads)+Vphsun*np.sin(glonrads)
 # longitude velocity
-  vlongals=vlons+Vrsun*np.sin(glonrads)+Vphsun*np.cos(glonrads)
-# for i in range(nstars):
-#  if glonrads[i]<np.pi:
-#    vlongals[i]=vlons[i]+Vrsun*np.sin(glonrads[i])+Vphsun*np.cos(glonrads[i])
-#  else:
-#    vlongals[i]=vlons[i]-Vrsun*np.sin(glonrads[i])+Vphsun*np.cos(glonrads[i])
+vlongals=vlons+Vrsun*np.sin(glonrads)+Vphsun*np.cos(glonrads)
 # calculate parameters at stellar position
-  rgals=np.sqrt(R0**2+distxys**2-2.0*R0*distxys*np.cos(glonrads))
-  phis=np.arccos((R0**2+rgals**2-distxys**2)/(2.0*R0*rgals))
-  phis[ypos<0]=-phis[ypos<0]
+rgals=np.sqrt(R0**2+distxys**2-2.0*R0*distxys*np.cos(glonrads))
+phis=np.arccos((R0**2+rgals**2-distxys**2)/(2.0*R0*rgals))
+phis[ypos<0]=-phis[ypos<0]
 # expected mean hrvmean and dispersion
-  hrvmeans=(VcR0-Vasyms)*np.sin(phis+glonrads)
-  hrvsig2s=(sigrR0**2)*(1.0+(np.sin(phis+glonrads)**2)*(Xsq-1.0))
+hrvmeans=(VcR0-Vasyms)*np.sin(phis+glonrads)
+hrvsig2s=(sigrR0**2)*(1.0+(np.sin(phis+glonrads)**2)*(Xsq-1.0))
 # expected mean vlonmean and dispersion
-  vlonmeans=(VcR0-Vasyms)*np.cos(phis+glonrads)
-  vlonsig2s=(sigrR0**2)*(1.0+(np.cos(phis+glonrads)**2)*(Xsq-1.0))
+vlonmeans=(VcR0-Vasyms)*np.cos(phis+glonrads)
+vlonsig2s=(sigrR0**2)*(1.0+(np.cos(phis+glonrads)**2)*(Xsq-1.0))
 
 # output ascii data for test
-  f=open('axsymdiskm-fit_hrvvlonmean_test.asc','w')
-  i=0
-  for i in range(nstars):
-    print >>f,"%f %f %f %f %f %f %f %f %f %f %f %f %f %f %f" %(xpos[i],ypos[i] \
-     ,glonrads[i],rgals[i],hrvs[i],vlons[i],hrvgals[i],vlongals[i] \
-     ,rgals[i],phis[i],Vasyms[i],hrvmeans[i],np.sqrt(hrvsig2s[i]) \
-     ,vlonmeans[i],np.sqrt(vlonsig2s[i]))
-  f.close()
+f=open('axsymdiskm-fit_hrvvlonmean_test.asc','w')
+i=0
+for i in range(nstars):
+  print >>f,"%f %f %f %f %f %f %f %f %f %f %f %f %f %f" %(xpos[i],ypos[i] \
+   ,glonrads[i],rgals[i],hrvs[i],vlons[i],hrvgals[i],vlongals[i] \
+   ,phis[i],Vasyms[i],hrvmeans[i],np.sqrt(hrvsig2s[i]) \
+   ,vlonmeans[i],np.sqrt(vlonsig2s[i]))
+f.close()
 
 # initial likelihood
 lnlikeini=lnprob(modelp,flags,fixvals,nstars,hrvs,vlons,distxys,glonrads)
