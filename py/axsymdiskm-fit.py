@@ -154,6 +154,7 @@ errpmdecv=star['pmdec_error']
 hrvv=star['HRV']
 errhrvv=star['e_HRV']
 logp=star['logPer']
+photnotes=star['Notes']
 
 ### read 2nd file
 infile='/Users/dkawata/work/obs/Cepheids/Genovali14/G14T34+TGAS+Melnik15-Gorynya_wHRV.fits'
@@ -184,6 +185,7 @@ errpmdecv=np.hstack((errpmdecv,star['pmdec_error']))
 hrvv=np.hstack((hrvv,star['HRV']))
 errhrvv=np.hstack((errhrvv,star['e_HRV']))
 logp=np.hstack((logp,star['logPer']))
+photnotes=np.hstack((photnotes,star['Notes']))
 
 # read the 3rd data
 addDDO=True
@@ -218,6 +220,7 @@ if addDDO==True:
   hrvv=np.hstack((hrvv,star['RV_mean']))
   errhrvv=np.hstack((errhrvv,np.ones(nstarv3)*HRVerr))
   logp=np.hstack((logp,star['logPer']))
+  photnotes=np.hstack((photnotes,star['Notes']))
 
 # use galpy RA,DEC -> Glon,Glat
 # Tlb=bovy_coords.radec_to_lb(rav,decv,degree=True,epoch=2000.0)
@@ -245,9 +248,17 @@ zpos=distv*np.sin(glatradv)
 Verrlim=10.0
 errpmrav=pmvconst*distv*errpmrav
 errpmdecv=pmvconst*distv*errpmdecv
+# sindx=np.where((np.sqrt(errpmrav**2+errpmdecv**2+errhrvv**2)<Verrlim) & \
+#               (np.abs(zpos)<0.2))
+# additional selection with photnotes in Genevali et al. (2014)
+# print np.core.defchararray.ljust(photnotes,1)
 sindx=np.where((np.sqrt(errpmrav**2+errpmdecv**2+errhrvv**2)<Verrlim) & \
                (np.abs(zpos)<0.2))
-# sindx=np.where((np.sqrt(errpmrav**2+errpmdecv**2+errhrvv**2)<Verrlim))
+#               (np.abs(zpos)<0.2) & \
+#               (np.core.defchararray.ljust(photnotes,2)!='c*'))
+#               (np.core.defchararray.ljust(photnotes,1)=='c'))
+#               (np.logical_or(np.core.defchararray.ljust(photnotes,1)=='a' \
+#               ,np.core.defchararray.ljust(photnotes,1)=='b')))
 # 
 hrvs=hrvv[sindx]
 vlons=vlonv[sindx]
@@ -255,6 +266,13 @@ distxys=distxyv[sindx]
 glonrads=glonradv[sindx]
 nstars=len(hrvs)
 print ' number of selected stars=',nstars
+
+# output selected stars
+f=open('axsymdiskm-fit_sels.asc','w')
+i=0
+for i in range(nstars):
+  print >>f,"%f %f %f %f" %(glonrads[i],distxys[i],hrvs[i],vlons[i])
+f.close()
 
 ### model fitting
 # set initial model parameters
@@ -308,7 +326,7 @@ if mocktest==True:
 # re-set heliocentric velocity
   hrvs=(vxs+Vrsun)*np.cos(glonrads)+(vys-Vphsun)*np.sin(glonrads)
   vlons=-(vxs+Vrsun)*np.sin(glonrads)+(vys-Vphsun)*np.cos(glonrads)
-  f=open('mock_input.asc','w')
+  f=open('axsymdiskm-fit_mock_input.asc','w')
   i=0
   for i in range(nstars):
     print >>f,"%f %f %f %f %f %f %f %f %f %f %f" %(xpos[i],ypos[i] \
@@ -338,7 +356,7 @@ if mocktest==True:
   vlonsig2s=(sigrR0**2)*(1.0+(np.cos(phis+glonrads)**2)*(Xsq-1.0))
 
 # output ascii data for test
-  f=open('hrvvlonmean_test.asc','w')
+  f=open('axsymdiskm-fit_hrvvlonmean_test.asc','w')
   i=0
   for i in range(nstars):
     print >>f,"%f %f %f %f %f %f %f %f %f %f %f %f %f %f %f" %(xpos[i],ypos[i] \
