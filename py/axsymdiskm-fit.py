@@ -3,7 +3,7 @@
 # axsymdiskm-fit.py
 #  fitting axisymmetric disk model to Cepheids kinematics data
 #
-#  25 June 2017 - written D. Kawata
+#  26 June 2017 - written D. Kawata
 #
 
 import pyfits
@@ -21,7 +21,7 @@ import corner
 def lnlike(modelp,flags,fixvals,n_s,hrv_s,vlon_s,distxy_s,glonrad_s):
   
 # read flags
-  hrhsig_fix=flags
+  hrhsig_fix,hrvsys_fit=flags
 # fixed parameters
   if hrhsig_fix==True:
 # radial density scale length is fixed
@@ -29,15 +29,20 @@ def lnlike(modelp,flags,fixvals,n_s,hrv_s,vlon_s,distxy_s,glonrad_s):
 # radial velocity dispersion scale length is fixed
     hsig=fixvals[1]
 # model parameter
-    VcR0,Vphsun,Vrsun,sigrR0,Xsq,R0=modelp
+    if hrvsys_fit==True:
+      VcR0,Vphsun,Vrsun,sigrR0,Xsq,R0,hrvsys=modelp
+    else:
+      VcR0,Vphsun,Vrsun,sigrR0,Xsq,R0=modelp
+      hrvsys=0.0
   else:
     hr=fixvals[0]
 # model parameter
     VcR0,Vphsun,Vrsun,sigrR0,hsig,Xsq,R0=modelp
+    hrvsys=0.0
 
 # stellar velocity in Galactic rest frame
 # line-of-sight velocity
-  hrvgal_s=hrv_s-Vrsun*np.cos(glonrad_s)+Vphsun*np.sin(glonrad_s)
+  hrvgal_s=hrv_s-hrvsys-Vrsun*np.cos(glonrad_s)+Vphsun*np.sin(glonrad_s)
 # longitude velocity
   vlongal_s=vlon_s+Vrsun*np.sin(glonrad_s)+Vphsun*np.cos(glonrad_s)
 #  vlongal_s=np.zeros(n_s)
@@ -76,17 +81,22 @@ def lnlike(modelp,flags,fixvals,n_s,hrv_s,vlon_s,distxy_s,glonrad_s):
 def lnprior(modelp,flags,fixvals):
 
 # model parameter
-  hrhsig_fix=flags
+  hrhsig_fix,hrvsys_fit=flags
   if hrhsig_fix==True: 
     hsig=fixvals[1]
-    VcR0,Vphsun,Vrsun,sigrR0,Xsq,R0=modelp
+    if hrvsys_fit==True:
+      VcR0,Vphsun,Vrsun,sigrR0,Xsq,R0,hrvsys=modelp
+    else:
+      VcR0,Vphsun,Vrsun,sigrR0,Xsq,R0=modelp
+      hrvsys=0.0
   else:
     VcR0,Vphsun,Vrsun,sigrR0,hsig,Xsq,R0=modelp
+    hrvsys=0.0
   
   if VcR0<150.0 or VcR0>350.0 or Vphsun<150.0 or Vphsun>350.0 \
     or np.abs(Vrsun)>100.0 or sigrR0<0.0 or sigrR0>100.0 \
     or hsig<0.0 or hsig>800.0 or Xsq<0.0 or Xsq>100.0 or R0<0.0 \
-    or R0>30.0:
+    or R0>30.0 or np.abs(hrvsys)>100.0:
     return -np.inf
 
   lnp=0.0
@@ -113,13 +123,20 @@ def lnprob(modelp,flags,fixvals,n_s,hrv_s,vlon_s,distxy_s,glonrad_s):
 mocktest=False
 hrhsig_fix=True
 # hrhsig_fix=False
+# only if hrhsig_fix, allow to explore hrvsys
+if hrhsig_fix==True:
+  hrvsys_fit=True
+else:
+  hrvsys_fit=False
+# set flags
+flags=hrhsig_fix,hrvsys_fit
 
 # fixed parameter
 hr=3.0
 if hrhsig_fix==True:
 # fix hsig and hr
   hsig=200.0
-  fixvals=np.zeros(2)
+  fixvals=np.zeros(3)
   fixvals[0]=hr
   fixvals[1]=hsig
   print ' fixed valuse hr,hsig=',hr,hsig
@@ -277,10 +294,16 @@ f.close()
 ### model fitting
 # set initial model parameters
 if hrhsig_fix==True:
-# VcR0,Vphsun,Vrsun,sigrR0,Xsq,R0=modelp
-  nparam=6
+  if hrvsys_fit==True:
+# VcR0,Vphsun,Vrsun,sigrR0,Xsq,R0,hrvsys=modelp
+    nparam=7
 # initial value
-  modelp0=np.array([240.0, 11.1+240.0, -11.1, 10.0, 1.0, 8.34])
+    modelp0=np.array([240.0, 11.1+240.0, -11.1, 10.0, 1.0, 8.34, -2.0])
+  else:
+# VcR0,Vphsun,Vrsun,sigrR0,Xsq,R0=modelp
+    nparam=6
+# initial value
+    modelp0=np.array([240.0, 11.1+240.0, -11.1, 10.0, 1.0, 8.34])
 else:
 # VcR0,Vphsun,Vrsun,sigrR0,hsig,Xsq,R0=modelp
   nparam=7
@@ -288,7 +311,6 @@ else:
   modelp0=np.array([240.0, 11.1+240.0, -11.1, 5.0, 8.0, 2.0, 8.34])
 
 modelp=modelp0
-
 
 if mocktest==True:
 # test using mock data
@@ -300,6 +322,8 @@ if mocktest==True:
   if hrhsig_fix==True:
     Xsq=modelp0[4]
     R0=modelp0[5]
+    if hrvsys_fit==True:
+      hrvsys=modelp0[6]
   else:
     hsig=modelp0[4]
     Xsq=modelp0[5]
@@ -336,7 +360,7 @@ if mocktest==True:
 
 # output hrv and vlon input data and expected values from the above parameters
 # line-of-sight velocity
-  hrvgals=hrvs-Vrsun*np.cos(glonrads)+Vphsun*np.sin(glonrads)
+  hrvgals=hrvs-hrvsys-Vrsun*np.cos(glonrads)+Vphsun*np.sin(glonrads)
 # longitude velocity
   vlongals=vlons+Vrsun*np.sin(glonrads)+Vphsun*np.cos(glonrads)
 # for i in range(nstars):
@@ -366,7 +390,6 @@ if mocktest==True:
   f.close()
 
 # initial likelihood
-flags=hrhsig_fix
 lnlikeini=lnprob(modelp,flags,fixvals,nstars,hrvs,vlons,distxys,glonrads)
 
 print ' Initial parameters=',modelp
@@ -401,14 +424,25 @@ while i<ndim:
 # corner plot
 # VcR0,Vphsun,Vrsun,sigrR0,hsig,Xsq,R0=modelp
 if hrhsig_fix==True:
-  if mocktest==True:
-    fig = corner.corner(samples, \
-      labels=["$V_c(R_0)$","$V_{\phi,\odot}$","$V_{R,\odot}$", "$\sigma_R(R_0)$", \
-      "$X^2$","$R_0$"],truths=modelp0)
+  if hrvsys_fit==True:
+    if mocktest==True:
+      fig = corner.corner(samples, \
+        labels=["$V_c(R_0)$","$V_{\phi,\odot}$","$V_{R,\odot}$", "$\sigma_R(R_0)$", \
+               "$X^2$","$R_0$", "$V_{los,sys}$"],truths=modelp0)
+    else:
+      fig = corner.corner(samples, \
+        labels=["$V_c(R_0)$","$V_{\phi,\odot}$","$V_{R,\odot}$", "$\sigma_R(R_0)$", \
+                "$X^2$","$R_0$", "$V_{los,sys}$"],truths=mpmean)
   else:
-    fig = corner.corner(samples, \
-      labels=["$V_c(R_0)$","$V_{\phi,\odot}$","$V_{R,\odot}$", "$\sigma_R(R_0)$", \
-      "$X^2$","$R_0$"],truths=mpmean)
+    if mocktest==True:
+      fig = corner.corner(samples, \
+        labels=["$V_c(R_0)$","$V_{\phi,\odot}$","$V_{R,\odot}$", "$\sigma_R(R_0)$", \
+        "$X^2$","$R_0$"],truths=modelp0)
+    else:
+      fig = corner.corner(samples, \
+        labels=["$V_c(R_0)$","$V_{\phi,\odot}$","$V_{R,\odot}$", "$\sigma_R(R_0)$", \
+        "$X^2$","$R_0$"],truths=mpmean)
+
 else:
   if mocktest==True:
     fig = corner.corner(samples, \
