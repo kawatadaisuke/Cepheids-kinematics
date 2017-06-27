@@ -101,8 +101,12 @@ def lnprior(modelp,flags,fixvals):
 
   lnp=0.0
 # Prior for R0 from Bland-Hawthorn & Gerhard (2016) 8.2pm0.1
-  R0prior=8.2
-  R0prior_sig=0.1
+#  R0prior=8.2
+#  R0prior_sig=0.1
+# Prior for R0 from de Gris & Bono (2016
+  R0prior=8.3
+  R0prior_sig=0.45
+
   lnp=-(R0-R0prior)**2/(R0prior_sig**2)-np.log(np.sqrt(2.0*np.pi)*R0prior_sig)
 
   return lnp
@@ -126,6 +130,7 @@ hrhsig_fix=True
 # only if hrhsig_fix, allow to explore hrvsys
 if hrhsig_fix==True:
   hrvsys_fit=True
+#  hrvsys_fit=False
 else:
   hrvsys_fit=False
 # set flags
@@ -278,6 +283,10 @@ sindx=np.where((np.sqrt(errpmrav**2+errpmdecv**2+errhrvv**2)<Verrlim) & \
 #               (np.logical_or(np.core.defchararray.ljust(photnotes,1)=='a' \
 #               ,np.core.defchararray.ljust(photnotes,1)=='b')))
 # 
+# add longitude selection
+# sindx=np.where((np.sqrt(errpmrav**2+errpmdecv**2+errhrvv**2)<Verrlim) & \
+#                (np.abs(zpos)<0.2) & \
+#               (glonv>180.0))
 hrvs=hrvv[sindx]
 vlons=vlonv[sindx]
 distxys=distxyv[sindx]
@@ -319,6 +328,7 @@ VcR0=modelp0[0]
 Vphsun=modelp0[1]
 Vrsun=modelp0[2]
 sigrR0=modelp0[3]
+hrvsys=0.0
 if hrhsig_fix==True:
   Xsq=modelp0[4]
   R0=modelp0[5]
@@ -416,6 +426,10 @@ while i<ndim:
   mpstd[i]=np.std(samples[:,i])
   print 'modelp',i,' mean,std=',mpmean[i],mpstd[i]
   i+=1
+
+# best-model likelihood
+lnlikebf=lnprob(mpmean,flags,fixvals,nstars,hrvs,vlons,distxys,glonrads)
+print ' Best model (MCMC mean)=',lnlikebf
 
 # corner plot
 # VcR0,Vphsun,Vrsun,sigrR0,hsig,Xsq,R0=modelp
