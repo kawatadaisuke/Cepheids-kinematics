@@ -16,6 +16,7 @@
 # 4. Plot x-y distribution and the arros of peculiar velocity
 # 
 # History:
+#  27/06/2017 include dVcdR
 #  23/06/2017 use only galpy velocities
 #  23/06/2017 move to obs/projs/Cepheids-kinematics/py
 #  22/06/2017 add velocity dispersion profile
@@ -54,8 +55,8 @@ dist=np.power(10.0,(star['Mod']+5.0)/5.0)*0.001
 rgalg14=star['Rgal']*0.001
 
 # Sun's radius used in Reid et al. (2014)
-# xsunr14=-8.34
-xsunr14=-8.0
+xsunr14=-8.34
+# xsunr14=-8.0
 #
 # Sun's proper motion Schoenrich et al.
 usun=11.1
@@ -69,8 +70,15 @@ zsun=7.25
 vcirc=240.0
 # Jo Bovy's suggestion
 vcirc=30.24*np.abs(xsunr14)-vsun
-
+# the best fit from axsymdiskm-fit
+xsunr14=-8.48
+usun=8.15
+vcirc=245.6
+vsun=256.7-vcirc
 print 'vcirc=',vcirc
+print 'u,v,w_sun=',vcirc
+dvcdr=-2.93
+print 'dVc/dR=',dvcdr
 
 # degree to radian
 glonrad=glon*np.pi/180.0
@@ -197,7 +205,7 @@ plt.show()
 
 ###### read the data with velocity info. #####
 # defaut HRV error
-HRVerr=5.0
+HRVerr=3.0
 
 infile='/Users/dkawata/work/obs/Cepheids/Genovali14/G14T34+TGAS+Gorynya.fits'
 star_hdus=pyfits.open(infile)
@@ -292,6 +300,7 @@ glatradv=glatv*np.pi/180.0
 # x,y position
 xposv=xsunr14+np.cos(glonradv)*distv*np.cos(glatradv)
 yposv=np.sin(glonradv)*distv*np.cos(glatradv)
+zposv=distv*np.sin(glatradv)
 # rgal with Reid et al. value
 rgalv=np.sqrt(xposv**2+yposv**2)
 delfehv =fehv-(slope*rgalv+intercept)
@@ -314,7 +323,8 @@ Tvxvyvz=bovy_coords.vrpmllpmbb_to_vxvyvz(hrvv,pmlonv,pmlatv,glonv,glatv,distv,de
 vxv=Tvxvyvz[:,0]+usun
 vyv=Tvxvyvz[:,1]+vsun
 vzv=Tvxvyvz[:,2]+zsun
-vyv=vyv+vcirc
+vcircrv=vcirc+dvcdr*(rgalv+xsunr14)
+vyv=vyv+vcircrv
 # original velocity
 vxv0=vxv
 vyv0=vyv
@@ -324,8 +334,9 @@ rgalv=np.sqrt(xposv**2+yposv**2)
 vradv0=(vxv0*xposv+vyv0*yposv)/rgalv
 vrotv0=(vxv0*yposv-vyv0*xposv)/rgalv
 # then subtract circular velocity contribution
-vxv=vxv-vcirc*yposv/rgalv
-vyv=vyv+vcirc*xposv/rgalv
+
+vxv=vxv-vcircrv*yposv/rgalv
+vyv=vyv+vcircrv*xposv/rgalv
 vradv=(vxv*xposv+vyv*yposv)/rgalv
 vrotv=(vxv*yposv-vyv*xposv)/rgalv
 
@@ -336,8 +347,10 @@ tbhdu = pyfits.BinTableHDU.from_columns([\
   pyfits.Column(name='Name',format='A20',array=name),\
   pyfits.Column(name='X',format='D',array=xposv),\
   pyfits.Column(name='Y',format='D',array=yposv),\
+  pyfits.Column(name='Z',format='D',array=zposv),\
   pyfits.Column(name='Vx',format='D',array=vxv0),\
   pyfits.Column(name='Vy',format='D',array=vyv0),\
+  pyfits.Column(name='Vz',format='D',array=vzv0),\
   pyfits.Column(name='[Fe/H]',format='D',array=fehv),\
   pyfits.Column(name='d[Fe/H]',format='D',array=delfehv),\
   pyfits.Column(name='Rgal',format='D',array=rgalv),\
