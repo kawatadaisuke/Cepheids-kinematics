@@ -3,7 +3,7 @@
 # axsymdiskm-fit.py
 #  fitting axisymmetric disk model to Cepheids kinematics data
 #
-#  26 June 2017 - written D. Kawata
+#  27 June 2017 - written D. Kawata
 #
 
 import pyfits
@@ -21,24 +21,34 @@ import corner
 def lnlike(modelp,flags,fixvals,n_s,hrv_s,vlon_s,distxy_s,glonrad_s):
   
 # read flags
-  hrhsig_fix,hrvsys_fit=flags
-# fixed parameters
+  hrhsig_fix,hrvsys_fit,dVcdR_fit=flags
+# model parameters
+  VcR0=modelp[0]
+  Vphsun=modelp[1]
+  Vrsun=modelp[2]
+  sigrR0=modelp[3]
+  Xsq=modelp[4]
+  R0=modelp[5]
+  ip=6
   if hrhsig_fix==True:
+# fixed parameters
 # radial density scale length is fixed
     hr=fixvals[0]
 # radial velocity dispersion scale length is fixed
     hsig=fixvals[1]
-# model parameter
-    if hrvsys_fit==True:
-      VcR0,Vphsun,Vrsun,sigrR0,Xsq,R0,hrvsys=modelp
-    else:
-      VcR0,Vphsun,Vrsun,sigrR0,Xsq,R0=modelp
-      hrvsys=0.0
   else:
     hr=fixvals[0]
-# model parameter
-    VcR0,Vphsun,Vrsun,sigrR0,hsig,Xsq,R0=modelp
+    hsig=modelp[ip]
+    ip+=1
+  if hrvsys_fit==True:
+    hrvsys=modelp[ip]
+    ip+=1
+  else:
     hrvsys=0.0
+  if dVcdR_fit==True:
+    dVcdR=modelp[ip]
+  else:
+    dVcdR=0.0
 
 # stellar velocity in Galactic rest frame
 # line-of-sight velocity
@@ -56,13 +66,14 @@ def lnlike(modelp,flags,fixvals,n_s,hrv_s,vlon_s,distxy_s,glonrad_s):
   rgal_s=np.sqrt(R0**2+distxy_s**2-2.0*R0*distxy_s*np.cos(glonrad_s))
   phi_s=np.arccos((R0**2+rgal_s**2-distxy_s**2)/(2.0*R0*rgal_s))
   phi_s[glonrad_s>np.pi]=-phi_s[glonrad_s>np.pi]
+  VcR_s=VcR0+(rgal_s-R0)*dVcdR
 # asymmetric drift
-  Vasym_s=0.5*((sigrR0**2)/VcR0)*(Xsq-1.0+rgal_s*(1.0/hr+2.0/hsig))
+  Vasym_s=0.5*((sigrR0**2)/VcR_s)*(Xsq-1.0+rgal_s*(1.0/hr+2.0/hsig))
 # expected mean hrvmean and dispersion
-  hrvmean_s=(VcR0-Vasym_s)*np.sin(phi_s+glonrad_s)
+  hrvmean_s=(VcR_s-Vasym_s)*np.sin(phi_s+glonrad_s)
   hrvsig2_s=(sigrR0**2)*(1.0+(np.sin(phi_s+glonrad_s)**2)*(Xsq-1.0))
 # expected mean vlonmean and dispersion
-  vlonmean_s=(VcR0-Vasym_s)*np.cos(phi_s+glonrad_s)
+  vlonmean_s=(VcR_s-Vasym_s)*np.cos(phi_s+glonrad_s)
   vlonsig2_s=(sigrR0**2)*(1.0+(np.cos(phi_s+glonrad_s)**2)*(Xsq-1.0))
 
   lnlk=np.nansum(-0.5*((hrvgal_s-hrvmean_s)**2/hrvsig2_s \
@@ -80,24 +91,42 @@ def lnlike(modelp,flags,fixvals,n_s,hrv_s,vlon_s,distxy_s,glonrad_s):
 # define prior
 def lnprior(modelp,flags,fixvals):
 
-# model parameter
-  hrhsig_fix,hrvsys_fit=flags
-  if hrhsig_fix==True: 
+# read flags
+  hrhsig_fix,hrvsys_fit,dVcdR_fit=flags
+# model parameters
+  VcR0=modelp[0]
+  Vphsun=modelp[1]
+  Vrsun=modelp[2]
+  sigrR0=modelp[3]
+  Xsq=modelp[4]
+  R0=modelp[5]
+  ip=6
+  if hrhsig_fix==True:
+# fixed parameters
+# radial density scale length is fixed
+    hr=fixvals[0]
+# radial velocity dispersion scale length is fixed
     hsig=fixvals[1]
-    if hrvsys_fit==True:
-      VcR0,Vphsun,Vrsun,sigrR0,Xsq,R0,hrvsys=modelp
-    else:
-      VcR0,Vphsun,Vrsun,sigrR0,Xsq,R0=modelp
-      hrvsys=0.0
   else:
-    VcR0,Vphsun,Vrsun,sigrR0,hsig,Xsq,R0=modelp
+    hr=fixvals[0]
+    hsig=modelp[ip]
+    ip+=1
+  if hrvsys_fit==True:
+    hrvsys=modelp[ip]
+    ip+=1
+  else:
     hrvsys=0.0
-  
+  if dVcdR_fit==True:
+    dVcdR=modelp[ip]
+  else: 
+    dVcdR=0.0
+
   if VcR0<150.0 or VcR0>350.0 or Vphsun<150.0 or Vphsun>350.0 \
     or np.abs(Vrsun)>100.0 or sigrR0<0.0 or sigrR0>100.0 \
     or hsig<0.0 or hsig>800.0 or Xsq<0.0 or Xsq>100.0 or R0<0.0 \
-    or R0>30.0 or np.abs(hrvsys)>100.0:
+    or R0>30.0 or np.abs(hrvsys)>100.0 or np.abs(dVcdR)>100.0:
     return -np.inf
+
 
   lnp=0.0
 # Prior for R0 from Bland-Hawthorn & Gerhard (2016) 8.2pm0.1
@@ -125,23 +154,32 @@ def lnprob(modelp,flags,fixvals,n_s,hrv_s,vlon_s,distxy_s,glonrad_s):
 # flags
 # mocktest=True
 mocktest=False
+
+# hr and hsig fix or not?
 hrhsig_fix=True
 # hrhsig_fix=False
+
+# allow HRV systematic error
 # only if hrhsig_fix, allow to explore hrvsys
 if hrhsig_fix==True:
   hrvsys_fit=True
 #  hrvsys_fit=False
 else:
   hrvsys_fit=False
-# set flags
-flags=hrhsig_fix,hrvsys_fit
+
+# fit dVcdR or not
+dVcdR_fit=True
+# dVcdR_fit=False
+
+# set all flags
+flags=hrhsig_fix,hrvsys_fit,dVcdR_fit
 
 # fixed parameter
 hr=3.0
 if hrhsig_fix==True:
 # fix hsig and hr
   hsig=200.0
-#  hsig=4.0
+# hsig=4.0
   fixvals=np.zeros(3)
   fixvals[0]=hr
   fixvals[1]=hsig
@@ -271,12 +309,12 @@ zpos=distv*np.sin(glatradv)
 Verrlim=10.0
 errpmrav=pmvconst*distv*errpmrav
 errpmdecv=pmvconst*distv*errpmdecv
-# sindx=np.where((np.sqrt(errpmrav**2+errpmdecv**2+errhrvv**2)<Verrlim) & \
-#               (np.abs(zpos)<0.2))
-# additional selection with photnotes in Genevali et al. (2014)
-# print np.core.defchararray.ljust(photnotes,1)
 sindx=np.where((np.sqrt(errpmrav**2+errpmdecv**2+errhrvv**2)<Verrlim) & \
                (np.abs(zpos)<0.2))
+# additional selection with photnotes in Genevali et al. (2014)
+# print np.core.defchararray.ljust(photnotes,1)
+# sindx=np.where((np.sqrt(errpmrav**2+errpmdecv**2+errhrvv**2)<Verrlim) & \
+#               (np.abs(zpos)<0.2))
 #               (np.abs(zpos)<0.2) & \
 #               (np.core.defchararray.ljust(photnotes,2)!='c*'))
 #               (np.core.defchararray.ljust(photnotes,1)=='c'))
@@ -284,9 +322,9 @@ sindx=np.where((np.sqrt(errpmrav**2+errpmdecv**2+errhrvv**2)<Verrlim) & \
 #               ,np.core.defchararray.ljust(photnotes,1)=='b')))
 # 
 # add longitude selection
-# sindx=np.where((np.sqrt(errpmrav**2+errpmdecv**2+errhrvv**2)<Verrlim) & \
-#                (np.abs(zpos)<0.2) & \
-#               (glonv>180.0))
+#sindx=np.where((np.sqrt(errpmrav**2+errpmdecv**2+errhrvv**2)<Verrlim) & \
+#               (np.abs(zpos)<0.2) & \
+#               (glonv<180.0))
 hrvs=hrvv[sindx]
 vlons=vlonv[sindx]
 distxys=distxyv[sindx]
@@ -303,41 +341,60 @@ f.close()
 
 ### model fitting
 # set initial model parameters
-if hrhsig_fix==True:
-  if hrvsys_fit==True:
-# VcR0,Vphsun,Vrsun,sigrR0,Xsq,R0,hrvsys=modelp
-    nparam=7
-# initial value
-    modelp0=np.array([237.2, 248.8, -8.2, 13.5, 0.87, 8.20, -3.0])
-  else:
-# VcR0,Vphsun,Vrsun,sigrR0,Xsq,R0=modelp
-    nparam=6
-# initial value
-    modelp0=np.array([240.0, 11.1+240.0, -11.1, 10.0, 1.0, 8.34])
-else:
-# VcR0,Vphsun,Vrsun,sigrR0,hsig,Xsq,R0=modelp
-  nparam=7
-# initial value
-  modelp0=np.array([240.0, 11.1+240.0, -11.1, 5.0, 8.0, 2.0, 8.34])
+# default model parameters
+nparam=6
+# initial values
+modelpname=np.array(['$V_c(R_0)$','$V_{\phi,\odot}$' \
+  ,'$V_{R,\odot}$','$\sigma_R(R_0)$','$X^2$','$R_0$'])
+modelp0=np.array([237.2, 248.8, -8.2, 13.5, 0.87, 8.20])
+if hrhsig_fix==False:
+# fit hsig
+  nparam+=1
+  modelp0=np.hstack((modelp0,20.0))
+  modelpname=np.hstack((modelpname,'$h_{\sigma}$'))
+if hrvsys_fit==True:
+  nparam+=1
+  modelp0=np.hstack((modelp0,2.0))
+  modelpname=np.hstack((modelpname,'$V_{los,sys}$'))
+if dVcdR_fit==True:
+  nparam+=1
+  modelp0=np.hstack((modelp0,-15.0))
+  modelpname=np.hstack((modelpname,'$dV_c(R_0)/dR$'))
+
+print ' N parameter fit=',nparam
+print ' parameters name=',modelpname
 
 modelp=modelp0
 
 # assign initial values for test output
 # these will be used for target parameters for mock data
-VcR0=modelp0[0]
-Vphsun=modelp0[1]
-Vrsun=modelp0[2]
-sigrR0=modelp0[3]
-hrvsys=0.0
+# model parameters
+VcR0=modelp[0]
+Vphsun=modelp[1]
+Vrsun=modelp[2]
+sigrR0=modelp[3]
+Xsq=modelp[4]
+R0=modelp[5]
+ip=6
 if hrhsig_fix==True:
-  Xsq=modelp0[4]
-  R0=modelp0[5]
-  if hrvsys_fit==True:
-    hrvsys=modelp0[6]
+# fixed parameters
+# radial density scale length is fixed
+  hr=fixvals[0]
+# radial velocity dispersion scale length is fixed
+  hsig=fixvals[1]
 else:
-  hsig=modelp0[4]
-  Xsq=modelp0[5]
-  R0=modelp0[6]
+  hr=fixvals[0]
+  hsig=modelp[ip]
+  ip+=1
+if hrvsys_fit==True:
+  hrvsys=modelp[ip]
+  ip+=1
+else:
+  hrvsys=0.0
+if dVcdR_fit==True:
+  dVcdR=modelp[ip]
+else: 
+  dVcdR=0.0
 
 xpos=-R0+np.cos(glonrads)*distxys
 ypos=np.sin(glonrads)*distxys
@@ -378,11 +435,12 @@ vlongals=vlons+Vrsun*np.sin(glonrads)+Vphsun*np.cos(glonrads)
 rgals=np.sqrt(R0**2+distxys**2-2.0*R0*distxys*np.cos(glonrads))
 phis=np.arccos((R0**2+rgals**2-distxys**2)/(2.0*R0*rgals))
 phis[ypos<0]=-phis[ypos<0]
+VcRs=VcR0+(rgals-R0)*dVcdR
 # expected mean hrvmean and dispersion
-hrvmeans=(VcR0-Vasyms)*np.sin(phis+glonrads)
+hrvmeans=(VcRs-Vasyms)*np.sin(phis+glonrads)
 hrvsig2s=(sigrR0**2)*(1.0+(np.sin(phis+glonrads)**2)*(Xsq-1.0))
 # expected mean vlonmean and dispersion
-vlonmeans=(VcR0-Vasyms)*np.cos(phis+glonrads)
+vlonmeans=(VcRs-Vasyms)*np.cos(phis+glonrads)
 vlonsig2s=(sigrR0**2)*(1.0+(np.cos(phis+glonrads)**2)*(Xsq-1.0))
 
 # output ascii data for test
@@ -433,36 +491,12 @@ print ' Best model (MCMC mean)=',lnlikebf
 
 # corner plot
 # VcR0,Vphsun,Vrsun,sigrR0,hsig,Xsq,R0=modelp
-if hrhsig_fix==True:
-  if hrvsys_fit==True:
-    if mocktest==True:
-      fig = corner.corner(samples, \
-        labels=["$V_c(R_0)$","$V_{\phi,\odot}$","$V_{R,\odot}$", "$\sigma_R(R_0)$", \
-               "$X^2$","$R_0$", "$V_{los,sys}$"],truths=modelp0)
-    else:
-      fig = corner.corner(samples, \
-        labels=["$V_c(R_0)$","$V_{\phi,\odot}$","$V_{R,\odot}$", "$\sigma_R(R_0)$", \
-                "$X^2$","$R_0$", "$V_{los,sys}$"],truths=mpmean)
-  else:
-    if mocktest==True:
-      fig = corner.corner(samples, \
-        labels=["$V_c(R_0)$","$V_{\phi,\odot}$","$V_{R,\odot}$", "$\sigma_R(R_0)$", \
-        "$X^2$","$R_0$"],truths=modelp0)
-    else:
-      fig = corner.corner(samples, \
-        labels=["$V_c(R_0)$","$V_{\phi,\odot}$","$V_{R,\odot}$", "$\sigma_R(R_0)$", \
-        "$X^2$","$R_0$"],truths=mpmean)
-
+if mocktest==True:
+  fig = corner.corner(samples, \
+      labels=modelpname,truths=modelp0)
 else:
-  if mocktest==True:
-    fig = corner.corner(samples, \
-      labels=["$V_c(R_0)$","$V_{\phi,\odot}$","$V_{R,\odot}$", "$\sigma_R(R_0)$", \
-      "$h_{\sigma}$","$X^2$","$R_0$"],truths=modelp0)
-  else:
-    fig = corner.corner(samples, \
-      labels=["$V_c(R_0)$","$V_{\phi,\odot}$","$V_{R,\odot}$", "$\sigma_R(R_0)$", \
-      "$h_{\sigma}$","$X^2$","$R_0$"],truths=mpmean)
-
+  fig = corner.corner(samples, \
+                      labels=modelpname,truths=mpmean)
 plt.show()
 
 fig.savefig("modelparam.jpg")
