@@ -71,13 +71,13 @@ vcirc=240.0
 # Jo Bovy's suggestion
 vcirc=30.24*np.abs(xsunr14)-vsun
 # the best fit from axsymdiskm-fit
-xsunr14=-8.48
-usun=8.15
-vcirc=245.6
-vsun=256.7-vcirc
+xsunr14=-8.7
+usun=8.1
+vcirc=249.9
+vsun=260.8-vcirc
 print 'vcirc=',vcirc
 print 'u,v,w_sun=',vcirc
-dvcdr=-2.93
+dvcdr=-3.3
 print 'dVc/dR=',dvcdr
 
 # degree to radian
@@ -375,9 +375,14 @@ tbhdu = pyfits.BinTableHDU.from_columns([\
 tbhdu.writeto('cepheidspv.fits',clobber=True)
 
 # check proper motion velocity errors
+Verrlim=10.0
 errpmrav=pmvconst*distv*errpmrav
 errpmdecv=pmvconst*distv*errpmdecv
-sindx=np.where(np.logical_and(errhrvv>0.0,np.logical_and(errhrvv<5.0,np.logical_and(errpmrav<5.0,errpmdecv<5.0))))
+#sindx=np.where(np.logical_and(errhrvv>0.0,np.logical_and(errhrvv<5.0,np.logical_and(errpmrav<5.0,errpmdecv<5.0))))
+# add distance and longitude selection
+sindx=np.where((np.sqrt(errpmrav**2+errpmdecv**2+errhrvv**2)<Verrlim) & \
+               (np.abs(zposv)<0.2) & \
+               (distv<4.0))
 namepme=name[sindx]
 xposvpme=xposv[sindx]
 yposvpme=yposv[sindx]
@@ -387,7 +392,7 @@ vyvpme=vyv[sindx]
 distpme=distv[sindx]
 vlonpme=vlonv[sindx]
 nspme=len(vyvpme)
-print 'proper motion error < 5 km/s nspme=',nspme
+print 'proper motion error < ',Verrlim,' km/s nspme=',nspme
 # Galactic radius and velocities
 rgalpme=np.sqrt(xposvpme**2+yposvpme**2)
 vradpme=(vxvpme*xposvpme+vyvpme*yposvpme)/rgalpme
