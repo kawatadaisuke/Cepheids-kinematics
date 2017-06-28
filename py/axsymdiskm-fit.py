@@ -127,16 +127,15 @@ def lnprior(modelp,flags,fixvals):
     or R0>30.0 or np.abs(hrvsys)>100.0 or np.abs(dVcdR)>100.0:
     return -np.inf
 
-
   lnp=0.0
 # Prior for R0 from Bland-Hawthorn & Gerhard (2016) 8.2pm0.1
 #  R0prior=8.2
 #  R0prior_sig=0.1
-# Prior for R0 from de Gris & Bono (2016
+# Prior for R0 from de Gris & Bono (2016)
   R0prior=8.3
   R0prior_sig=0.45
 
-  lnp=-(R0-R0prior)**2/(R0prior_sig**2)-np.log(np.sqrt(2.0*np.pi)*R0prior_sig)
+  lnp=-0.5*(R0-R0prior)**2/(R0prior_sig**2)-np.log(np.sqrt(2.0*np.pi)*R0prior_sig)
 
   return lnp
 
@@ -162,8 +161,8 @@ hrhsig_fix=True
 # allow HRV systematic error
 # only if hrhsig_fix, allow to explore hrvsys
 if hrhsig_fix==True:
-  hrvsys_fit=True
-#  hrvsys_fit=False
+#  hrvsys_fit=True
+  hrvsys_fit=False
 else:
   hrvsys_fit=False
 
@@ -309,8 +308,8 @@ zpos=distv*np.sin(glatradv)
 Verrlim=10.0
 errpmrav=pmvconst*distv*errpmrav
 errpmdecv=pmvconst*distv*errpmdecv
-sindx=np.where((np.sqrt(errpmrav**2+errpmdecv**2+errhrvv**2)<Verrlim) & \
-               (np.abs(zpos)<0.2))
+# sindx=np.where((np.sqrt(errpmrav**2+errpmdecv**2+errhrvv**2)<Verrlim) & \
+#                (np.abs(zpos)<0.2))
 # additional selection with photnotes in Genevali et al. (2014)
 # print np.core.defchararray.ljust(photnotes,1)
 # sindx=np.where((np.sqrt(errpmrav**2+errpmdecv**2+errhrvv**2)<Verrlim) & \
@@ -321,10 +320,11 @@ sindx=np.where((np.sqrt(errpmrav**2+errpmdecv**2+errhrvv**2)<Verrlim) & \
 #               (np.logical_or(np.core.defchararray.ljust(photnotes,1)=='a' \
 #               ,np.core.defchararray.ljust(photnotes,1)=='b')))
 # 
-# add longitude selection
-#sindx=np.where((np.sqrt(errpmrav**2+errpmdecv**2+errhrvv**2)<Verrlim) & \
-#               (np.abs(zpos)<0.2) & \
-#               (glonv<180.0))
+# add distance and longitude selection
+sindx=np.where((np.sqrt(errpmrav**2+errpmdecv**2+errhrvv**2)<Verrlim) & \
+               (np.abs(zpos)<0.2) & \
+               (distv<4.0) & \
+               (glonv>180.0))
 hrvs=hrvv[sindx]
 vlons=vlonv[sindx]
 distxys=distxyv[sindx]
@@ -482,7 +482,7 @@ i=0
 while i<ndim:
   mpmean[i]=np.mean(samples[:,i])
   mpstd[i]=np.std(samples[:,i])
-  print 'modelp',i,' mean,std=',mpmean[i],mpstd[i]
+  print 'modelp',i,' mean,std= $%5.1f\pm %5.1f$' %(mpmean[i],mpstd[i])
   i+=1
 
 # best-model likelihood
