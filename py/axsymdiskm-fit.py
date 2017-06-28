@@ -161,8 +161,8 @@ hrhsig_fix=True
 # allow HRV systematic error
 # only if hrhsig_fix, allow to explore hrvsys
 if hrhsig_fix==True:
-#  hrvsys_fit=True
-  hrvsys_fit=False
+  hrvsys_fit=True
+#  hrvsys_fit=False
 else:
   hrvsys_fit=False
 
@@ -323,8 +323,10 @@ errpmdecv=pmvconst*distv*errpmdecv
 # add distance and longitude selection
 sindx=np.where((np.sqrt(errpmrav**2+errpmdecv**2+errhrvv**2)<Verrlim) & \
                (np.abs(zpos)<0.2) & \
-               (distv<4.0) & \
-               (glonv>180.0))
+               (distv<4.0))
+#               (glonv>180.0))
+#               (logp<0.8))
+
 hrvs=hrvv[sindx]
 vlons=vlonv[sindx]
 distxys=distxyv[sindx]
