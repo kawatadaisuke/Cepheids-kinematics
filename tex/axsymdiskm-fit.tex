@@ -1,0 +1,168 @@
+\documentclass[11pt,a4paper]{article}
+\RequirePackage{graphicx}
+%\usepackage{eurosym}
+\usepackage[small,compact]{titlesec}
+
+
+
+% hyperref is great, but remember to define or include the macros used
+% in ADS's bibtex entry
+\usepackage{hyperref}
+\input{/Users/dkawata/work/paper/journals}
+\usepackage{natbib}
+\bibliographystyle{/Users/dkawata/work/paper/mnras}
+
+\textwidth=17.75cm
+\textheight=25.0 cm
+\topmargin=-2.0 cm
+\oddsidemargin=-0.75cm
+\evensidemargin=-0.75cm
+
+%
+% Start of document
+%
+\begin{document}
+\title 
+% Title
+{\bf \normalsize
+ Axisymmetric model fitting to Cepheids data
+ }
+%
+\author{ \small Daisuke Kawata (MSSL, UCL)}
+\date{}
+
+\maketitle
+
+\small
+\begin{center}
+{\bfseries Abstract}
+\end{center}
+\begin{quotation}
+\begin{small}
+\vspace{-5pt}
+% Abstract
+  Summary of axisymmetric disk model adapted from \citet{baabbdc12}, to apply it to the Cepheids data. 
+%
+\end{small}
+\end{quotation}
+
+%
+\bigskip
+%
+
+\section{Axisymmetric disc kinematic model}
+
+Following \citet{baabbdc12}, we compute the mean and dispersion of $V_{\rm los}$ expected in an axisymmetric Galactic disc model in the Galactic rest frame, and compare with the observational data. We also compute the same values for velocity in Galactic longitude direction, $V_{\rm glon}$, and include them for likelihood function. The model assumes a Gaussian velocity dispersion in the rotation and radial direction, and zero mean radial velocity. 
+
+In the Galactic rest frame, the mean rotation velocity at the position of the star, $\overline{V_{\phi}}$, can be projected to the line of sight velocity, $V_{\rm los}$ from the observer, i.e. the position of the Sun as $V_{\rm m,los}=\overline{V_{\phi}} \sin(\phi+l)$, where $\phi$ is the angle between the line from the Galactic centre toward Sun and the one toward the position of the star, positive in clockwise, and $l$ is Galactic longitude. Angle $\phi$ can be calculated with $\phi=sign(l-180) {\rm acos}((R_0^2+R^2-d_{xy}^2)/(2 R_0 R)$, where $R_0$ is the Galactocentric radius of the Sun, R is the Galactocentric radius of the star, and $d_{xy}$ is the distance from the Sun to the star in the plane. Similarly, the velocity dispersion in the rotation direction can be projected to the line of sight direction, like $\sigma_{\rm los, \sigma_{\phi}}=\sigma_{\phi} \sin(\phi+l)$. On the other hand, the radial velocity dispersion is projected to the line of sight direction by $\sigma_{\rm los, \sigma_{R}}=\sigma_R \sin(\phi+l)$. Then, the expected velocity dispersion for the line-of-sight direction is $\sigma_{\rm m,los}=\sqrt{\sigma_{\rm los, \sigma_{\phi}}^2+\sigma_{\rm los, \sigma_{R}}^2}=\sqrt{\sigma^2(1+\sin^2(\phi+l) (X^2-1))}$, where $X^2=\sigma_{\phi}^2/\sigma_{R}^2$. These are shown in Section 3.2 of \citet{baabbdc12}.
+
+Following the same strategy, we can derive the mean and dispersion of $V_{\rm glon}$ as follows. $V_{\rm m, glon}=\overline{V_{\phi}}\cos(\phi+l)$ and $\sigma_{\rm glon,\sigma_R}=\sigma_R \cos(\phi+1)$. Hence, $\sigma_{\rm m, glon}^2=\sigma_R^2(1+\cos^2(\phi+l) (X^2-1))$.
+
+The mean rotation velocity, $\overline{V_{\phi}} (R)$, is calculated from asymmetric drift, $V_{\rm a}$ as $\overline{V_{\phi}}(R)=V_{\rm c} (R)-V_{\rm a}(R)$, where $V_c(R)$ is the circular velocity at radius, $R$. Following \citet{baabbdc12}, asymmetric drift is calculated by 
+\begin{equation}
+V_{\rm a}(R)=\frac{\sigma_R^2(R)}{2 V_{\rm c}(R)} \left[X^2-1+R\left(\frac{1}{h_R}+\frac{2}{h_{\sigma}}\right)\right].
+\end{equation}
+Here, $h_R$ and $h_{\sigma}$ are radial scale length of surface mass density and the radial scale length of the radial velocity dispersion profile, respectively. As discussed in \citet{baabbdc12}, the Galactic parameters we are interested in are not sensitive to these parameters. Hence, we fix $h_R=3.0$ and $h_{\sigma}=200$, i.e. a flat velocity dispersion. We also take into account the slope of the circular velocity at $R_0$, $d V_{\rm c}(R_0)/dR$, when we calculate $V_c(R)$. 
+
+In observational data, we have the line-of-sight velocity, $V_{\rm los}^{\rm helio}$, and Galactic longitudinal velocity, $V_{\rm glon}^{\rm helio}$, with respect to the Solar motion. Using the Solar radial and rotation velocities, $V_{\rm R,\odot}$ (outward motion is positive) and $V_{\rm \phi,\odot}$ (clock-wise rotation is positive, $V_{\rm \phi,\odot}=V_{\rm c}+V_{\odot}$), these velocities can be converted to the Galactic rest-frame velocities as follows.
+\begin{eqnarray}
+V_{\rm o,los} & = & V_{\rm los}^{\rm helio} - V_{R,\odot} \cos l + V_{\rm \phi,\odot} \sin l, \\
+V_{\rm o,glon} & = & V_{\rm glon}^{\rm helio} + V_{R,\odot} \sin l + V_{\rm \phi,\odot} \cos l.
+\end{eqnarray}
+
+\section{MCMC parameter probabilities}
+
+We consider the posterior probability to find the marginalised probability distribution function of our model parameters.
+\begin{equation}
+ p(\theta_m=V_{\rm c}(R_0), V_{\phi,\odot}, V_{R,\odot}, \sigma_{\rm R}(R_0), X^2, R_0, V_{\rm los,sys}, dV_{\rm c}(R_0)/dR| \mathcal{D})
+ = \mathcal L(\mathcal{D}|\theta_m) \times Prior,
+\end{equation} 
+where $\mathcal{D}$ describes the observational data, and $\theta_m$ corresponds to the model parameters. We run MCMC for $\ln p$. We also model a possible systematic motion of $V_{\rm los,sys}$ for the radial line-of-sight velocity, and take this into account as
+\begin{equation}
+V_{\rm o,los} = V_{\rm los}^{\rm helio}-V_{\rm los,sys} - V_{R,\odot} \cos l + V_{\rm \phi,\odot} \sin l.
+\end{equation}
+Likelihood function is described with 
+\begin{equation}
+\mathcal{L}=\prod_i^N \frac{1}{2 \pi \sigma_{\rm m,los,i} \sigma_{\rm m,los,i}} 
+ \exp\left(-\frac{(V_{\rm o,los,i}-V_{\rm m,los,i})^2}{\sigma_{\rm m,los,i}^2}\right)
+  \exp\left(-\frac{(V_{\rm o,glon,i}-V_{\rm m,glon,i})^2}{\sigma_{\rm m,glon,i}^2}\right).
+\end{equation}
+We found that $R_0$ is not well constrained by the current observational data. Hence, we introduced a Gaussian prior for $R_0$ as follows.
+\begin{equation}
+ Prior(R_0)= \frac{1}{\sqrt{2 \pi \sigma_{\rm R_0,prior}}}  \exp\left(-\frac{(R_0-R_{0,prior})^2}{\sigma_{R_0,prior}^2}\right),
+\end{equation}
+where we set $R_{0,prior}=8.3$ and $\sigma_{R_0,prior}=0.45$ from \citep{rdggb16}.
+
+\section{Preliminary results}
+
+Using the above method, we fit the Cepheids kinematics data. We used the data with the velocity errors less than 10 km~s$^{-1}$ and the vertical height, $|z-z_{\odot}|<0.2$ kpc. Total number of stars used are 179.  The marginalised probability distribution is shown in Fig.~\ref{fig-mcmcall}. The results are summarised in Table~\ref{tab:MCMC-res}.
+
+The results are similar to \citet{vvb17a} who used Cepheids cataglogue data with TGAS proper motion. 
+
+Trial with $h_{\sigma}=4$ provides similar results. 
+
+The differences in the results for the samples of $l<180$~deg and $l>180$~deg are interesting, and highlight the importance of having both side of the data. 
+
+The systematic line-of-sight motion is detected with $V_{\rm los,sys}=-2.9$~km~s$^{-1}$. However, if we use only $l>180$~deg data, it becomes a positive value. 
+
+\begin{table}
+\centering
+ \caption{Results of the MCMC fitting}
+ \label{tab:MCMC-res}
+ \begin{tabular}{lccc}
+  \hline
+ & All & $l<180$ & $l>180$ \\
+ \hline
+ $V_{\rm c}(R_0)$ & $245.9\pm9.8$ & $235.2\pm17.3$ & $250.7\pm15.5$ \\
+ $V_{\phi,\odot}$ & $257.1\pm9.9$ &  $245.0\pm17.6$  & $256.8\pm15.8$  \\
+ $V_{R,\odot}$ & $-8.17\pm0.99$  & $-7.39\pm2.65$  & $-7.20\pm2.52$ \\
+ $\sigma_{\rm R}(R_0)$ & $13.1\pm0.9$ & $11.6\pm1.69$  & $12.97\pm1.0$ \\
+ $X^2$ & $0.89\pm0.2$ & $1.93\pm0.95$  & $0.72\pm0.19$ \\
+ $R_0$ & $8.49\pm0.30$ & $8.37\pm0.31$ & $8.39\pm0.31$  \\
+ $V_{\rm los,sys}$ & $-2.62\pm0.97$ & $-5.23\pm2.11$  & $2.88\pm2.04$ \\
+ $dV_{\rm c}(R_0)/dR$ & $-2.87\pm0.79$ & $-2.81\pm1.38$ & $-3.45\pm0.99$ \\
+ N & 179 & 83 & 96 \\
+\hline
+\end{tabular}
+\end{table}
+
+
+\begin{figure}
+\leavevmode
+\includegraphics[width=\hsize]{Ceph-kin-MCMC-all}
+\caption{\small
+Marginalised probability distribution of the model parameters. All 179 data are used.
+}
+\label{fig-mcmcall}
+\end{figure}
+
+\begin{figure}
+\leavevmode
+\includegraphics[width=\hsize]{Ceph-kin-MCMC-llt180}
+\caption{\small
+Marginalised probability distribution of the model parameters by fitting 83 stars with $l<180$~deg.
+}
+\label{fig-mcmcllt180}
+\end{figure}
+
+\begin{figure}
+\leavevmode
+\includegraphics[width=\hsize]{Ceph-kin-MCMC-lgt180}
+\caption{\small
+Marginalised probability distribution of the model parameters by fitting 96 stars with $l>180$~deg.
+}
+\label{fig-mcmclgt180}
+\end{figure}
+
+ 
+
+
+
+\footnotesize
+
+\setlength{\baselineskip}{0pt}
+%\setlength{\parskip}{-0.pt}
+\setlength{\bibsep}{0pt}
+\bibliography{/Users/dkawata/work/paper/dkref}
+
+\end{document}
