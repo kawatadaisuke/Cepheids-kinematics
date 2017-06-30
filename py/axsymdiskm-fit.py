@@ -80,6 +80,13 @@ def lnlike(modelp,flags,fixvals,n_s,hrv_s,vlon_s,distxy_s,glonrad_s):
     +(vlongal_s-vlonmean_s)**2/vlonsig2_s) \
     -np.log(2.0*np.pi*np.sqrt(hrvsig2_s)*np.sqrt(vlonsig2_s)))
 
+# radial velocity only
+#  lnlk=np.nansum(-0.5*((hrvgal_s-hrvmean_s)**2/hrvsig2_s) \
+#    -0.5*np.log(2.0*np.pi*hrvsig2_s))
+# longitudinal velcoity only
+#  lnlk=np.nansum(-0.5*((vlongal_s-vlonmean_s)**2/vlonsig2_s) \
+#    -0.5*np.log(2.0*np.pi*vlonsig2_s))
+
 # Reid et al. (2014) "conservative formula"
 #  rhrv2ij=(hrvgal_s-hrvmean_s)**2/hrvsig2_s
 #  rvlon2ij=(vlongal_s-vlonmean_s)**2/vlonsig2_s
@@ -131,6 +138,9 @@ def lnprior(modelp,flags,fixvals):
 # Prior for R0 from Bland-Hawthorn & Gerhard (2016) 8.2pm0.1
 #  R0prior=8.2
 #  R0prior_sig=0.1
+# Prior for R0 from Jo Bovy's recommendation on 28 June 2017
+#  R0prior=8.1
+#  R0prior_sig=0.1
 # Prior for R0 from de Gris & Bono (2016)
   R0prior=8.3
   R0prior_sig=0.45
@@ -161,8 +171,8 @@ hrhsig_fix=True
 # allow HRV systematic error
 # only if hrhsig_fix, allow to explore hrvsys
 if hrhsig_fix==True:
-  hrvsys_fit=True
-#  hrvsys_fit=False
+#  hrvsys_fit=True
+  hrvsys_fit=False
 else:
   hrvsys_fit=False
 
@@ -178,7 +188,7 @@ hr=3.0
 if hrhsig_fix==True:
 # fix hsig and hr
   hsig=200.0
-# hsig=4.0
+#  hsig=4.0
   fixvals=np.zeros(3)
   fixvals[0]=hr
   fixvals[1]=hsig
@@ -323,16 +333,52 @@ errpmdecv=pmvconst*distv*errpmdecv
 # add distance and longitude selection
 sindx=np.where((np.sqrt(errpmrav**2+errpmdecv**2+errhrvv**2)<Verrlim) & \
                (np.abs(zpos)<0.2) & \
-               (distv<4.0))
+               (distv<10.0))
+#               (logp>0.8))
 #               (glonv>180.0))
-#               (logp<0.8))
+
 
 hrvs=hrvv[sindx]
 vlons=vlonv[sindx]
 distxys=distxyv[sindx]
 glonrads=glonradv[sindx]
 nstars=len(hrvs)
-print ' number of selected stars=',nstars
+print ' number of selected stars=',nstars  
+
+nadds=0
+if mocktest==True and nadds>0:
+# add or replace
+  mock_add=False
+  if mock_add==True:
+# add more stars
+    dmin=4.0
+    dmax=8.0
+    hrvadds=np.zeros(nadds)
+    vlonadds=np.zeros(nadds)
+    distxyadds=np.random.uniform(dmin,dmax,nadds)
+    glonadds=np.random.uniform(0.0,2.0*np.pi,nadds)
+    hrvs=np.hstack((hrvs,hrvadds))
+    vlons=np.hstack((vlons,vlonadds))
+    distxys=np.hstack((distxys,distxyadds))
+    glonrads=np.hstack((glonrads,glonadds))
+    nstars=nstars+nadds
+    print ' number of stars after addition of stars =',nstars  
+  else:
+# replace the particles.
+    dmin=0.0
+    dmax=8.0
+    hrvadds=np.zeros(nadds)
+    vlonadds=np.zeros(nadds)
+# ramdomly homogeneous distribution
+    distxyadds=np.sqrt(np.random.uniform(0.0,1.0,nadds))*dmax
+#    distxyadds=np.random.uniform(dmin,dmax,nadds)
+    glonadds=np.random.uniform(0.0,2.0*np.pi,nadds)
+    hrvs=hrvadds
+    vlons=vlonadds
+    distxys=distxyadds
+    glonrads=glonadds
+    nstars=nadds
+    print ' number of stars after replacing =',nstars  
 
 # output selected stars
 f=open('axsymdiskm-fit_sels.asc','w')
@@ -348,7 +394,8 @@ nparam=6
 # initial values
 modelpname=np.array(['$V_c(R_0)$','$V_{\phi,\odot}$' \
   ,'$V_{R,\odot}$','$\sigma_R(R_0)$','$X^2$','$R_0$'])
-modelp0=np.array([237.2, 248.8, -8.2, 13.5, 0.87, 8.20])
+# modelp0=np.array([237.2, 248.8, -8.2, 13.5, 0.87, 8.20])
+modelp0=np.array([230.0, 240.0, -10.0, 10.0, 0.25, 8.10])
 if hrhsig_fix==False:
 # fit hsig
   nparam+=1
@@ -423,9 +470,9 @@ if mocktest==True:
   f=open('axsymdiskm-fit_mock_input.asc','w')
   i=0
   for i in range(nstars):
-    print >>f,"%f %f %f %f %f %f %f %f %f %f %f" %(xpos[i],ypos[i] \
+    print >>f,"%f %f %f %f %f %f %f %f %f %f %f %f" %(xpos[i],ypos[i] \
      ,glonrads[i],rgals[i],vrads[i],vphs[i],angs[i],vxs[i],vys[i] \
-     ,hrvs[i],vlons[i])
+     ,hrvs[i],vlons[i],Vasyms[i])
   f.close()
 
 # output hrv and vlon input data and expected values from the above parameters
@@ -462,7 +509,8 @@ print ' Initial parameters=',modelp
 print ' Initial ln likelihood=',lnlikeini
 
 # define number of dimension for parameters
-ndim,nwalkers=nparam,100
+# ndim,nwalkers=nparam,100
+ndim,nwalkers=nparam,50
 # initialise walker's position
 pos=[modelp+1.0e-3*np.random.randn(ndim) for i in range(nwalkers)]
 
