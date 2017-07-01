@@ -309,13 +309,13 @@ pmlatv=Tpmllbb[:,1]
 distxyv=distv*np.cos(glatradv)
 # pmlonv is pmlon x cons(b) 
 vlonv=pmvconst*pmlonv*distv
-vlatxyv=pmvconst*pmlatv*distv*np.sin(glatradv)
+vlatv=pmvconst*pmlatv*distv
 # z position
 zpos=distv*np.sin(glatradv)
 
 # select only velocity error is small enough
-# Verrlim=5.0
-Verrlim=10.0
+Verrlim=5.0
+# Verrlim=10.0
 errpmrav=pmvconst*distv*errpmrav
 errpmdecv=pmvconst*distv*errpmdecv
 # sindx=np.where((np.sqrt(errpmrav**2+errpmdecv**2+errhrvv**2)<Verrlim) & \
