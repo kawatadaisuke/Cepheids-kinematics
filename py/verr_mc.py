@@ -182,11 +182,13 @@ vlat_err=np.std(vlat_sam,axis=0)
 
 tbhdu = pyfits.BinTableHDU.from_columns([\
   pyfits.Column(name='Name',format='A20',array=name),\
-  pyfits.Column(name='[Fe/H]',format='D',array=fehv),\
+  pyfits.Column(name='FeH',format='D',array=fehv),\
   pyfits.Column(name='Dist',format='D',array=distv), \
   pyfits.Column(name='e_Dist',format='D',array=dist_err), \
   pyfits.Column(name='Mod',format='D',array=modv), \
   pyfits.Column(name='e_Mod',format='D',array=moderrv), \
+  pyfits.Column(name='Glon',format='D',array=glonv), \
+  pyfits.Column(name='Glat',format='D',array=glatv), \
   pyfits.Column(name='RA',format='D',array=rav), \
   pyfits.Column(name='DEC',format='D',array=decv), \
   pyfits.Column(name='PMRA',format='D',array=pmrav), \
