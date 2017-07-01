@@ -317,7 +317,7 @@ pmlatv=Tpmllbb[:,1]
 distxyv=distv*np.cos(glatradv)
 # pmlonv is pmlon x cons(b) 
 vlonv=pmvconst*pmlonv*distv
-vlatxyv=pmvconst*pmlatv*distv*np.sin(glatradv)
+vlatv=pmvconst*pmlatv*distv
 # use galpy
 Tvxvyvz=bovy_coords.vrpmllpmbb_to_vxvyvz(hrvv,pmlonv,pmlatv,glonv,glatv,distv,degree=True)
 vxv=Tvxvyvz[:,0]+usun
