@@ -69,16 +69,17 @@ def lnlike(modelp,flags,fixvals,n_s,hrv_s,vlon_s,distxy_s,glonrad_s \
   phi_s[glonrad_s>np.pi]=-phi_s[glonrad_s>np.pi]
   VcR_s=VcR0+(rgal_s-R0)*dVcdR
 # asymmetric drift
-  Vasym_s=0.5*((sigrR0**2)/VcR_s)*(Xsq-1.0+rgal_s*(1.0/hr+2.0/hsig))
+  sigr_s=sigrR0*np.exp(-(rgal_s-R0)/hsig)
+  Vasym_s=0.5*((sigr_s**2)/VcR_s)*(Xsq-1.0+rgal_s*(1.0/hr+2.0/hsig))
 # expected mean hrvmean and dispersion
   hrvmean_s=(VcR_s-Vasym_s)*np.sin(phi_s+glonrad_s)
 # add error in vlos
-  hrvsig2_s=(sigrR0**2)*(1.0+(np.sin(phi_s+glonrad_s)**2)*(Xsq-1.0)) \
+  hrvsig2_s=(sigr_s**2)*(1.0+(np.sin(phi_s+glonrad_s)**2)*(Xsq-1.0)) \
            +errhrv_s**2
 # expected mean vlonmean and dispersion
   vlonmean_s=(VcR_s-Vasym_s)*np.cos(phi_s+glonrad_s)
 # add error in vlon
-  vlonsig2_s=(sigrR0**2)*(1.0+(np.cos(phi_s+glonrad_s)**2)*(Xsq-1.0)) \
+  vlonsig2_s=(sigr_s**2)*(1.0+(np.cos(phi_s+glonrad_s)**2)*(Xsq-1.0)) \
             +errvlon_s**2
 
   lnlk=np.nansum(-0.5*((hrvgal_s-hrvmean_s)**2/hrvsig2_s \
@@ -145,8 +146,8 @@ def lnprior(modelp,flags,fixvals):
 #  R0prior_sig=0.1
 # Prior for R0 from Jo Bovy's recommendation on 28 June 2017
   R0prior=8.1
-  R0prior_sig=0.1
-#  R0prior_sig=0.4
+#  R0prior_sig=0.1
+  R0prior_sig=0.4
 # Prior for R0 from de Gris & Bono (2016)
 #  R0prior=8.3
 #  R0prior_sig=0.45
@@ -172,8 +173,8 @@ def lnprob(modelp,flags,fixvals,n_s,hrv_s,vlon_s,distxy_s,glonrad_s \
 mocktest=True
 # mocktest=False
 # add verr to mock data. 
-# mocktest_addverr=True
-mocktest_addverr=False
+mocktest_addverr=True
+# mocktest_addverr=False
 
 # including velocity error? reading verr_mc.fits
 withverr=True
@@ -378,7 +379,10 @@ distmaxlim=10.0
 if withverr==True:
   sindx=np.where((np.sqrt(errvlonv**2+errhrvv**2)<Verrlim) & \
                (np.abs(zpos)<zmaxlim) & \
-                 (distv<distmaxlim))
+                (distv<distmaxlim))
+#                (distv<distmaxlim) & \
+#                (logp>0.8))
+
 else:
   errpmrav=pmvconst*distv*errpmrav
   errpmdecv=pmvconst*distv*errpmdecv
@@ -468,7 +472,7 @@ modelp0=np.array([230.0, 240.0, -8.0, 13.0, 0.8, 8.10])
 if hrhsig_fix==False:
 # fit hsig
   nparam+=1
-  modelp0=np.hstack((modelp0,20.0))
+  modelp0=np.hstack((modelp0,4.0))
   modelpname=np.hstack((modelpname,'$h_{\sigma}$'))
 if hrvsys_fit==True:
   nparam+=1
@@ -521,12 +525,13 @@ rgals=np.sqrt(xpos**2+ypos**2)
 if mocktest==True:
 # test using mock data
 # reassign hrvs, voons
-  sigrs=sigrR0
-  sigphs=np.sqrt(Xsq)*sigrR0
+# exponential profile
+  sigrs=sigrR0*np.exp(-(rgals-R0)/hsig)
+  sigphs=np.sqrt(Xsq)*sigrs
   vrads=np.random.normal(0.0,sigrs,nstars)
   VcRs=VcR0+(rgals-R0)*dVcdR
 # asymmetric drift
-  Vasyms=0.5*((sigrR0**2)/VcRs)*(Xsq-1.0+rgals*(1.0/hr+2.0/hsig))
+  Vasyms=0.5*((sigrs**2)/VcRs)*(Xsq-1.0+rgals*(1.0/hr+2.0/hsig))
   vphs=np.random.normal(VcRs-Vasyms,sigphs,nstars)
 # angle from x=0, y=+
   angs=np.zeros(nstars)
@@ -565,7 +570,8 @@ phis=np.arccos((R0**2+rgals**2-distxys**2)/(2.0*R0*rgals))
 phis[ypos<0]=-phis[ypos<0]
 VcRs=VcR0+(rgals-R0)*dVcdR
 # expected mean hrvmean and dispersion
-Vasyms=0.5*((sigrR0**2)/VcRs)*(Xsq-1.0+rgals*(1.0/hr+2.0/hsig))
+sigrs=sigrR0*np.exp(-(rgals-R0)/hsig)
+Vasyms=0.5*((sigrs**2)/VcRs)*(Xsq-1.0+rgals*(1.0/hr+2.0/hsig))
 hrvmeans=(VcRs-Vasyms)*np.sin(phis+glonrads)
 hrvsig2s=(sigrR0**2)*(1.0+(np.sin(phis+glonrads)**2)*(Xsq-1.0))
 # expected mean vlonmean and dispersion
