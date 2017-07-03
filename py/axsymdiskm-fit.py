@@ -144,11 +144,11 @@ def lnprior(modelp,flags,fixvals):
 #  R0prior=8.2
 #  R0prior_sig=0.1
 # Prior for R0 from Jo Bovy's recommendation on 28 June 2017
-#  R0prior=8.1
-#  R0prior_sig=0.1
+  R0prior=8.1
+  R0prior_sig=0.1
 # Prior for R0 from de Gris & Bono (2016)
-  R0prior=8.3
-  R0prior_sig=0.45
+#  R0prior=8.3
+#  R0prior_sig=0.45
 
   lnp=-0.5*(R0-R0prior)**2/(R0prior_sig**2)-np.log(np.sqrt(2.0*np.pi)*R0prior_sig)
 
@@ -167,8 +167,8 @@ def lnprob(modelp,flags,fixvals,n_s,hrv_s,vlon_s,distxy_s,glonrad_s \
 ##### main programme start here #####
 
 # flags
-# mocktest=True
-mocktest=False
+mocktest=True
+# mocktest=False
 
 # including velocity error?
 withverr=True
@@ -459,7 +459,7 @@ nparam=6
 modelpname=np.array(['$V_c(R_0)$','$V_{\phi,\odot}$' \
   ,'$V_{R,\odot}$','$\sigma_R(R_0)$','$X^2$','$R_0$'])
 # modelp0=np.array([237.2, 248.8, -8.2, 13.5, 0.87, 8.20])
-modelp0=np.array([230.0, 240.0, -10.0, 10.0, 0.25, 8.10])
+modelp0=np.array([230.0, 240.0, -8.0, 13.0, 0.8, 8.10])
 if hrhsig_fix==False:
 # fit hsig
   nparam+=1
@@ -471,7 +471,7 @@ if hrvsys_fit==True:
   modelpname=np.hstack((modelpname,'$V_{los,sys}$'))
 if dVcdR_fit==True:
   nparam+=1
-  modelp0=np.hstack((modelp0,-15.0))
+  modelp0=np.hstack((modelp0,-3.0))
   modelpname=np.hstack((modelpname,'$dV_c(R_0)/dR$'))
 
 print ' N parameter fit=',nparam
@@ -512,8 +512,6 @@ else:
 xpos=-R0+np.cos(glonrads)*distxys
 ypos=np.sin(glonrads)*distxys
 rgals=np.sqrt(xpos**2+ypos**2)
-# asymmetric drift
-Vasyms=0.5*((sigrR0**2)/VcR0)*(Xsq-1.0+rgals*(1.0/hr+2.0/hsig))
 
 if mocktest==True:
 # test using mock data
@@ -521,7 +519,10 @@ if mocktest==True:
   sigrs=sigrR0
   sigphs=np.sqrt(Xsq)*sigrR0
   vrads=np.random.normal(0.0,sigrs,nstars)
-  vphs=np.random.normal(VcR0-Vasyms,sigphs,nstars)
+  VcRs=VcR0+(rgals-R0)*dVcdR
+# asymmetric drift
+  Vasyms=0.5*((sigrR0**2)/VcRs)*(Xsq-1.0+rgals*(1.0/hr+2.0/hsig))
+  vphs=np.random.normal(VcRs-Vasyms,sigphs,nstars)
 # angle from x=0, y=+
   angs=np.zeros(nstars)
   angs[ypos>=0]=np.arccos(-xpos[ypos>=0]/rgals[ypos>=0])
@@ -550,12 +551,12 @@ phis=np.arccos((R0**2+rgals**2-distxys**2)/(2.0*R0*rgals))
 phis[ypos<0]=-phis[ypos<0]
 VcRs=VcR0+(rgals-R0)*dVcdR
 # expected mean hrvmean and dispersion
+Vasyms=0.5*((sigrR0**2)/VcRs)*(Xsq-1.0+rgals*(1.0/hr+2.0/hsig))
 hrvmeans=(VcRs-Vasyms)*np.sin(phis+glonrads)
 hrvsig2s=(sigrR0**2)*(1.0+(np.sin(phis+glonrads)**2)*(Xsq-1.0))
 # expected mean vlonmean and dispersion
 vlonmeans=(VcRs-Vasyms)*np.cos(phis+glonrads)
 vlonsig2s=(sigrR0**2)*(1.0+(np.cos(phis+glonrads)**2)*(Xsq-1.0))
-
 
 # output ascii data for test
 f=open('axsymdiskm-fit_hrvvlonmean_test.asc','w')
@@ -579,8 +580,7 @@ print ' Initial parameters=',modelp
 print ' Initial ln likelihood=',lnlikeini
 
 # define number of dimension for parameters
-# ndim,nwalkers=nparam,100
-ndim,nwalkers=nparam,50
+ndim,nwalkers=nparam,100
 # initialise walker's position
 pos=[modelp+1.0e-3*np.random.randn(ndim) for i in range(nwalkers)]
 
@@ -602,7 +602,7 @@ i=0
 while i<ndim:
   mpmean[i]=np.mean(samples[:,i])
   mpstd[i]=np.std(samples[:,i])
-  print 'modelp',i,' mean,std= $%5.1f\pm %5.1f$' %(mpmean[i],mpstd[i])
+  print 'modelp',i,' mean,std= $%6.2f\pm %6.2f$' %(mpmean[i],mpstd[i])
   i+=1
 
 # best-model likelihood
