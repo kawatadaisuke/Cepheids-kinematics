@@ -146,6 +146,7 @@ def lnprior(modelp,flags,fixvals):
 # Prior for R0 from Jo Bovy's recommendation on 28 June 2017
   R0prior=8.1
   R0prior_sig=0.1
+#  R0prior_sig=0.4
 # Prior for R0 from de Gris & Bono (2016)
 #  R0prior=8.3
 #  R0prior_sig=0.45
@@ -167,10 +168,14 @@ def lnprob(modelp,flags,fixvals,n_s,hrv_s,vlon_s,distxy_s,glonrad_s \
 ##### main programme start here #####
 
 # flags
+# mock data test
 mocktest=True
 # mocktest=False
+# add verr to mock data. 
+# mocktest_addverr=True
+mocktest_addverr=False
 
-# including velocity error?
+# including velocity error? reading verr_mc.fits
 withverr=True
 # withverr=False
 
@@ -530,8 +535,17 @@ if mocktest==True:
   vxs=vphs*np.sin(angs)-vrads*np.cos(angs)
   vys=vphs*np.cos(angs)+vrads*np.sin(angs)
 # re-set heliocentric velocity
-  hrvs=(vxs+Vrsun)*np.cos(glonrads)+(vys-Vphsun)*np.sin(glonrads)
-  vlons=-(vxs+Vrsun)*np.sin(glonrads)+(vys-Vphsun)*np.cos(glonrads)
+  if mocktest_addverr==True:
+    hrvs=(vxs+Vrsun)*np.cos(glonrads)+(vys-Vphsun)*np.sin(glonrads) \
+      +np.random.normal(0.0,errvlons,nstars)
+    vlons=-(vxs+Vrsun)*np.sin(glonrads)+(vys-Vphsun)*np.cos(glonrads) \
+      +np.random.normal(0.0,errhrvs,nstars)
+  else:
+    hrvs=(vxs+Vrsun)*np.cos(glonrads)+(vys-Vphsun)*np.sin(glonrads)
+    vlons=-(vxs+Vrsun)*np.sin(glonrads)+(vys-Vphsun)*np.cos(glonrads)
+# set no Verr
+    errvlons=np.zeros(nstars)
+    errhrvs=np.zeros(nstars)
   f=open('axsymdiskm-fit_mock_input.asc','w')
   i=0
   for i in range(nstars):
@@ -581,6 +595,7 @@ print ' Initial ln likelihood=',lnlikeini
 
 # define number of dimension for parameters
 ndim,nwalkers=nparam,100
+# ndim,nwalkers=nparam,50
 # initialise walker's position
 pos=[modelp+1.0e-3*np.random.randn(ndim) for i in range(nwalkers)]
 
