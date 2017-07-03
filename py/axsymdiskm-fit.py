@@ -3,7 +3,7 @@
 # axsymdiskm-fit.py
 #  fitting axisymmetric disk model to Cepheids kinematics data
 #
-#  27 June 2017 - written D. Kawata
+#  3 July 2017 - written D. Kawata
 #
 
 import pyfits
@@ -18,7 +18,8 @@ import emcee
 import corner
 
 # define likelihood, constant Vc, sigR, Xsq
-def lnlike(modelp,flags,fixvals,n_s,hrv_s,vlon_s,distxy_s,glonrad_s):
+def lnlike(modelp,flags,fixvals,n_s,hrv_s,vlon_s,distxy_s,glonrad_s \
+          ,errhrv_s,errvlon_s):
   
 # read flags
   hrhsig_fix,hrvsys_fit,dVcdR_fit=flags
@@ -71,10 +72,14 @@ def lnlike(modelp,flags,fixvals,n_s,hrv_s,vlon_s,distxy_s,glonrad_s):
   Vasym_s=0.5*((sigrR0**2)/VcR_s)*(Xsq-1.0+rgal_s*(1.0/hr+2.0/hsig))
 # expected mean hrvmean and dispersion
   hrvmean_s=(VcR_s-Vasym_s)*np.sin(phi_s+glonrad_s)
-  hrvsig2_s=(sigrR0**2)*(1.0+(np.sin(phi_s+glonrad_s)**2)*(Xsq-1.0))
+# add error in vlos
+  hrvsig2_s=(sigrR0**2)*(1.0+(np.sin(phi_s+glonrad_s)**2)*(Xsq-1.0)) \
+           +errhrv_s**2
 # expected mean vlonmean and dispersion
   vlonmean_s=(VcR_s-Vasym_s)*np.cos(phi_s+glonrad_s)
-  vlonsig2_s=(sigrR0**2)*(1.0+(np.cos(phi_s+glonrad_s)**2)*(Xsq-1.0))
+# add error in vlon
+  vlonsig2_s=(sigrR0**2)*(1.0+(np.cos(phi_s+glonrad_s)**2)*(Xsq-1.0)) \
+            +errvlon_s**2
 
   lnlk=np.nansum(-0.5*((hrvgal_s-hrvmean_s)**2/hrvsig2_s \
     +(vlongal_s-vlonmean_s)**2/vlonsig2_s) \
@@ -150,13 +155,14 @@ def lnprior(modelp,flags,fixvals):
   return lnp
 
 # define the final ln probability
-def lnprob(modelp,flags,fixvals,n_s,hrv_s,vlon_s,distxy_s,glonrad_s):
+def lnprob(modelp,flags,fixvals,n_s,hrv_s,vlon_s,distxy_s,glonrad_s \
+  ,errhrv_s,errvlon_s):
 
   lp=lnprior(modelp,flags,fixvals)
   if not np.isfinite(lp):
     return -np.inf
-  return lp+lnlike(modelp,flags,fixvals,n_s,hrv_s,vlon_s,distxy_s,glonrad_s)
-
+  return lp+lnlike(modelp,flags,fixvals,n_s,hrv_s,vlon_s,distxy_s,glonrad_s \
+                  ,errhrv_s,errvlon_s)
 
 ##### main programme start here #####
 
@@ -166,6 +172,7 @@ mocktest=False
 
 # including velocity error?
 withverr=True
+# withverr=False
 
 # hr and hsig fix or not?
 hrhsig_fix=True
@@ -332,6 +339,9 @@ else:
     errhrvv=np.hstack((errhrvv,np.ones(nstarv3)*HRVerr))
     logp=np.hstack((logp,star['logPer']))
     photnotes=np.hstack((photnotes,star['Notes']))
+# set error for lonv zero
+  errvlonv=np.zeros(nstarv)
+  errvlatv=np.zeros(nstarv)
 
 # use galpy RA,DEC -> Glon,Glat
 # Tlb=bovy_coords.radec_to_lb(rav,decv,degree=True,epoch=2000.0)
@@ -354,12 +364,16 @@ zpos=distv*np.sin(glatradv)
 distxyv=distv*np.cos(glatradv)
 
 # select only velocity error is small enough
-Verrlim=5.0
+# Verrlim=5.0
 # Verrlim=10.0
+Verrlim=10000.0
+zmaxlim=0.2
+# zmaxlim=1000.0
+distmaxlim=10.0
 if withverr==True:
   sindx=np.where((np.sqrt(errvlonv**2+errhrvv**2)<Verrlim) & \
-               (np.abs(zpos)<0.2) & \
-               (distv<10.0))
+               (np.abs(zpos)<zmaxlim) & \
+                 (distv<distmaxlim))
 else:
   errpmrav=pmvconst*distv*errpmrav
   errpmdecv=pmvconst*distv*errpmdecv
@@ -377,16 +391,17 @@ else:
 # 
 # add distance and longitude selection
   sindx=np.where((np.sqrt(errpmrav**2+errpmdecv**2+errhrvv**2)<Verrlim) & \
-               (np.abs(zpos)<0.2) & \
-               (distv<10.0))
+                 (np.abs(zpos)<zmaxlim) & \
+                 (distv<distmaxlim))
 #               (logp>0.8))
 #               (glonv>180.0))
-
 
 hrvs=hrvv[sindx]
 vlons=vlonv[sindx]
 distxys=distxyv[sindx]
 glonrads=glonradv[sindx]
+errvlons=errvlonv[sindx]
+errhrvs=errhrvv[sindx]
 nstars=len(hrvs)
 print ' number of selected stars=',nstars  
 
@@ -406,6 +421,8 @@ if mocktest==True and nadds>0:
     vlons=np.hstack((vlons,vlonadds))
     distxys=np.hstack((distxys,distxyadds))
     glonrads=np.hstack((glonrads,glonadds))
+    errvhrvs=np.hstack((errhrvs,np.zeros(nadds)))
+    errvlons=np.hstack((errvlons,np.zeros(nadds)))
     nstars=nstars+nadds
     print ' number of stars after addition of stars =',nstars  
   else:
@@ -422,6 +439,8 @@ if mocktest==True and nadds>0:
     vlons=vlonadds
     distxys=distxyadds
     glonrads=glonadds
+    errhrvs=np.zeros(nadds)
+    errvlons=np.zeros(nadds)
     nstars=nadds
     print ' number of stars after replacing =',nstars  
 
@@ -537,6 +556,7 @@ hrvsig2s=(sigrR0**2)*(1.0+(np.sin(phis+glonrads)**2)*(Xsq-1.0))
 vlonmeans=(VcRs-Vasyms)*np.cos(phis+glonrads)
 vlonsig2s=(sigrR0**2)*(1.0+(np.cos(phis+glonrads)**2)*(Xsq-1.0))
 
+
 # output ascii data for test
 f=open('axsymdiskm-fit_hrvvlonmean_test.asc','w')
 i=0
@@ -547,8 +567,13 @@ for i in range(nstars):
    ,vlonmeans[i],np.sqrt(vlonsig2s[i]))
 f.close()
 
+if withverr==False:
+# set errhrvs zero 
+  errhrvs=np.zeros(nstars)
+
 # initial likelihood
-lnlikeini=lnprob(modelp,flags,fixvals,nstars,hrvs,vlons,distxys,glonrads)
+lnlikeini=lnprob(modelp,flags,fixvals,nstars,hrvs,vlons,distxys,glonrads \
+                 ,errhrvs,errvlons)
 
 print ' Initial parameters=',modelp
 print ' Initial ln likelihood=',lnlikeini
@@ -561,7 +586,7 @@ pos=[modelp+1.0e-3*np.random.randn(ndim) for i in range(nwalkers)]
 
 # set up the sampler
 sampler = emcee.EnsembleSampler(nwalkers,ndim,lnprob,args=(flags,fixvals \
-  ,nstars,hrvs,vlons,distxys,glonrads))
+  ,nstars,hrvs,vlons,distxys,glonrads,errhrvs,errvlons))
 
 # MCMC run
 sampler.run_mcmc(pos,1000)
@@ -581,7 +606,8 @@ while i<ndim:
   i+=1
 
 # best-model likelihood
-lnlikebf=lnprob(mpmean,flags,fixvals,nstars,hrvs,vlons,distxys,glonrads)
+lnlikebf=lnprob(mpmean,flags,fixvals,nstars,hrvs,vlons,distxys,glonrads \
+                ,errhrvs,errvlons)
 print ' Best model (MCMC mean)=',lnlikebf
 
 # corner plot
