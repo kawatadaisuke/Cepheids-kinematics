@@ -3,7 +3,7 @@
 # axsymdiskm-fit.py
 #  fitting axisymmetric disk model to Cepheids kinematics data
 #
-#  3 July 2017 - written D. Kawata
+#  4 July 2017 - written D. Kawata
 #
 
 import pyfits
@@ -170,11 +170,14 @@ def lnprob(modelp,flags,fixvals,n_s,hrv_s,vlon_s,distxy_s,glonrad_s \
 
 # flags
 # mock data test
-mocktest=True
-# mocktest=False
-# add verr to mock data. 
-mocktest_addverr=True
-# mocktest_addverr=False
+# mocktest=True
+mocktest=False
+# add V and distance error to mock data. 
+# mocktest_adderr=True
+mocktest_adderr=False
+
+# mc sampling of likelihood take into account the errors
+mcerrlike=True
 
 # including velocity error? reading verr_mc.fits
 withverr=True
@@ -232,7 +235,9 @@ if withverr==True:
   glatv=star['Glat']
 # rescaled Fe/H
   fehv=star['FeH']
-  distv=np.power(10.0,(star['Mod']+5.0)/5.0)*0.001
+  modv=star['Mod']
+  moderrv=star['e_Mod']
+  distv=np.power(10.0,(modv+5.0)/5.0)*0.001
 # RA, DEC from Gaia data
   rav=star['RA']
   decv=star['DEC']
@@ -240,6 +245,7 @@ if withverr==True:
   pmdecv=star['PMDEC']
   errpmrav=star['e_PMRA']
   errpmdecv=star['e_PMDEC']
+  pmradec_corrv=star['PMRADEC_corr']
   vlonv=star['Vlon']
   errvlonv=star['e_Vlon']
   vlatv=star['Vlat']
@@ -267,6 +273,8 @@ else:
   glatv=star['_Glat']
 # rescaled Fe/H
   fehv=star['__Fe_H_']
+  modv=star['Mod']
+  moderrv=star['e_Mod']
   distv=np.power(10.0,(star['Mod']+5.0)/5.0)*0.001
 # RA, DEC from Gaia data
   rav=star['_RA']
@@ -275,6 +283,7 @@ else:
   pmdecv=star['pmdec']
   errpmrav=star['pmra_error']
   errpmdecv=star['pmdec_error']
+  pmradec_corrv=star['pmra_pmdec_corr']
   hrvv=star['HRV']
   errhrvv=star['e_HRV']
   logp=star['logPer']
@@ -298,6 +307,8 @@ else:
   glatv=np.hstack((glatv,star['_Glat']))
 # rescaled Fe/H
   fehv=np.hstack((fehv,star['__Fe_H_']))
+  modv=np.hstack((modv,star['Mod']))
+  moderrv=np.hstack((moderrv,star['e_Mod']))
   distv=np.hstack((distv,np.power(10.0,(star['Mod']+5.0)/5.0)*0.001))
 # RA, DEC from Gaia data
   rav=np.hstack((rav,star['_RA_1']))
@@ -306,6 +317,7 @@ else:
   pmdecv=np.hstack((pmdecv,star['pmdec']))
   errpmrav=np.hstack((errpmrav,star['pmra_error']))
   errpmdecv=np.hstack((errpmdecv,star['pmdec_error']))
+  pmradec_corrv=np.hstack((pmradec_corrv,star['pmra_pmdec_corr']))
   hrvv=np.hstack((hrvv,star['HRV']))
   errhrvv=np.hstack((errhrvv,star['e_HRV']))
   logp=np.hstack((logp,star['logPer']))
@@ -333,6 +345,8 @@ else:
     glatv=np.hstack((glatv,star['_Glat']))
 # rescaled Fe/H
     fehv=np.hstack((fehv,star['__Fe_H_']))
+    modv=np.hstack((modv,star['Mod']))
+    moderrv=np.hstack((moderrv,star['e_Mod']))
     distv=np.hstack((distv,np.power(10.0,(star['Mod']+5.0)/5.0)*0.001))
 # RA, DEC from Gaia data
     rav=np.hstack((rav,star['_RA']))
@@ -341,6 +355,7 @@ else:
     pmdecv=np.hstack((pmdecv,star['pmdec']))
     errpmrav=np.hstack((errpmrav,star['pmra_error']))
     errpmdecv=np.hstack((errpmdecv,star['pmdec_error']))
+    pmradec_corrv=np.hstack((pmradec_corrv,star['pmra_pmdec_corr']))
     hrvv=np.hstack((hrvv,star['RV_mean']))
     errhrvv=np.hstack((errhrvv,np.ones(nstarv3)*HRVerr))
     logp=np.hstack((logp,star['logPer']))
@@ -377,15 +392,17 @@ zmaxlim=0.2
 # zmaxlim=1000.0
 distmaxlim=10.0
 if withverr==True:
+  zwerr=np.power(10.0,(modv+moderrv+5.0)/5.0)*0.001*np.sin(glatradv)
   sindx=np.where((np.sqrt(errvlonv**2+errhrvv**2)<Verrlim) & \
-               (np.abs(zpos)<zmaxlim) & \
-                (distv<distmaxlim))
+                 (np.abs(zwerr)<zmaxlim) & \
+                 (distv<distmaxlim))
 #                (distv<distmaxlim) & \
 #                (logp>0.8))
 
 else:
-  errpmrav=pmvconst*distv*errpmrav
-  errpmdecv=pmvconst*distv*errpmdecv
+  zwerr=np.power(10.0,(modv+moderrv+5.0)/5.0)*0.001*np.sin(glatradv)
+  errpmravkms=pmvconst*distv*errpmrav
+  errpmdecvkms=pmvconst*distv*errpmdecv
 # sindx=np.where((np.sqrt(errpmrav**2+errpmdecv**2+errhrvv**2)<Verrlim) & \
 #                (np.abs(zpos)<0.2))
 # additional selection with photnotes in Genevali et al. (2014)
@@ -399,8 +416,8 @@ else:
 #               ,np.core.defchararray.ljust(photnotes,1)=='b')))
 # 
 # add distance and longitude selection
-  sindx=np.where((np.sqrt(errpmrav**2+errpmdecv**2+errhrvv**2)<Verrlim) & \
-                 (np.abs(zpos)<zmaxlim) & \
+  sindx=np.where((np.sqrt(errpmravkms**2+errpmdecvkms**2+errhrvv**2)<Verrlim) & \
+                 (np.abs(zwerr)<zmaxlim) & \
                  (distv<distmaxlim))
 #               (logp>0.8))
 #               (glonv>180.0))
@@ -411,6 +428,12 @@ distxys=distxyv[sindx]
 glonrads=glonradv[sindx]
 errvlons=errvlonv[sindx]
 errhrvs=errhrvv[sindx]
+errpmras=errpmrav[sindx]
+errpmdecs=errpmdecv[sindx]
+pmradec_corrs=pmradec_corrv[sindx]
+mods=modv[sindx]
+moderrs=moderrv[sindx]
+
 nstars=len(hrvs)
 print ' number of selected stars=',nstars  
 
@@ -432,6 +455,7 @@ if mocktest==True and nadds>0:
     glonrads=np.hstack((glonrads,glonadds))
     errvhrvs=np.hstack((errhrvs,np.zeros(nadds)))
     errvlons=np.hstack((errvlons,np.zeros(nadds)))
+    pmradec_corrs=np.hstack((errvlons,np.ones(nadds)))
     nstars=nstars+nadds
     print ' number of stars after addition of stars =',nstars  
   else:
@@ -450,6 +474,7 @@ if mocktest==True and nadds>0:
     glonrads=glonadds
     errhrvs=np.zeros(nadds)
     errvlons=np.zeros(nadds)
+    pmradec_corrs=np.ones(nadds)
     nstars=nadds
     print ' number of stars after replacing =',nstars  
 
@@ -540,7 +565,7 @@ if mocktest==True:
   vxs=vphs*np.sin(angs)-vrads*np.cos(angs)
   vys=vphs*np.cos(angs)+vrads*np.sin(angs)
 # re-set heliocentric velocity
-  if mocktest_addverr==True:
+  if mocktest_adderr==True:
     hrvs=(vxs+Vrsun)*np.cos(glonrads)+(vys-Vphsun)*np.sin(glonrads) \
       +np.random.normal(0.0,errvlons,nstars)
     vlons=-(vxs+Vrsun)*np.sin(glonrads)+(vys-Vphsun)*np.cos(glonrads) \
