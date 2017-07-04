@@ -195,6 +195,7 @@ tbhdu = pyfits.BinTableHDU.from_columns([\
   pyfits.Column(name='e_PMRA',format='D',array=errpmrav), \
   pyfits.Column(name='PMDEC',format='D',array=pmdecv), \
   pyfits.Column(name='e_PMDEC',format='D',array=errpmdecv), \
+  pyfits.Column(name='PMRADEC_corr',format='D',array=pmradec_corrv), \
   pyfits.Column(name='Vlon',format='D',array=vlonv), \
   pyfits.Column(name='e_Vlon',format='D',array=vlon_err), \
   pyfits.Column(name='Vlat',format='D',array=vlatv), \
