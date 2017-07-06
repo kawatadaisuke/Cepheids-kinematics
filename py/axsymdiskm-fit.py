@@ -16,13 +16,20 @@ from scipy import stats
 from galpy.util import bovy_coords
 import emcee
 import corner
+import sys
+from scipy.misc import logsumexp
 
 # define likelihood, constant Vc, sigR, Xsq
-def lnlike(modelp,flags,fixvals,n_s,hrv_s,vlon_s,distxy_s,glonrad_s \
-          ,errhrv_s,errvlon_s):
-  
+def lnlike(modelp,flags,fixvals,stardata):
+
 # read flags
-  hrhsig_fix,hrvsys_fit,dVcdR_fit=flags
+  hrhsig_fix,hrvsys_fit,dVcdR_fit,mcerrlike=flags
+
+  if mcerrlike==True:
+    n_s,nmc,glonrad_s,glatrad_s,hrv_sam,dist_sam,vlon_sam=stardata
+  else:
+    n_s,hrv_s,vlon_s,distxy_s,glonrad_s,errhrv_s,errvlon_s=stardata
+
 # model parameters
   VcR0=modelp[0]
   Vphsun=modelp[1]
@@ -51,40 +58,83 @@ def lnlike(modelp,flags,fixvals,n_s,hrv_s,vlon_s,distxy_s,glonrad_s \
   else:
     dVcdR=0.0
 
+  if mcerrlike==True:
+    glonrad_flsam=np.tile(glonrad_s,(nmc,1)).flatten()
+    glatrad_flsam=np.tile(glatrad_s,(nmc,1)).flatten()
+    dist_flsam=dist_sam.flatten()
+    distxy_flsam=dist_flsam*np.cos(glatrad_flsam)
+# velocity sample
+# line-of-sight velocity
+    hrvgal_flsam=hrv_sam.flatten()-hrvsys \
+                 -Vrsun*np.cos(glonrad_flsam)+Vphsun*np.sin(glonrad_flsam)
+# longitude velocity   
+    vlongal_flsam=vlon_sam.flatten() \
+                  +Vrsun*np.sin(glonrad_flsam)+Vphsun*np.cos(glonrad_flsam)
+# calculate parameters at stellar position
+    rgal_flsam=np.sqrt(R0**2+dist_flsam**2-2.0*R0*dist_flsam \
+                              *np.cos(glonrad_flsam))
+    phi_flsam=np.arccos((R0**2+rgal_flsam**2-distxy_flsam**2) \
+                        /(2.0*R0*rgal_flsam))
+    phi_flsam[glonrad_flsam>np.pi]=-phi_flsam[glonrad_flsam>np.pi]
+    VcR_flsam=VcR0+(rgal_flsam-R0)*dVcdR
+# asymmetric drift
+    sigr_flsam=sigrR0*np.exp(-(rgal_flsam-R0)/hsig)
+    Vasym_flsam=0.5*((sigr_flsam**2)/VcR_flsam)*(Xsq-1.0 \
+      +rgal_flsam*(1.0/hr+2.0/hsig))
+# expected mean hrvmean and dispersion
+    hrvmean_flsam=(VcR_flsam-Vasym_flsam)*np.sin(phi_flsam+glonrad_flsam)
+# add error in vlos
+    hrvsig2_flsam=(sigr_flsam**2)*(1.0+(np.sin(phi_flsam+glonrad_flsam)**2) \
+      *(Xsq-1.0))
+# expected mean vlonmean and dispersion
+    vlonmean_flsam=(VcR_flsam-Vasym_flsam)*np.cos(phi_flsam+glonrad_flsam)
+# add error in vlon
+    vlonsig2_flsam=(sigr_flsam**2)*(1.0+(np.cos(phi_flsam+glonrad_flsam)**2) \
+      *(Xsq-1.0))
+
+# reshape the relevant variables
+    hrvgal_sam=hrvgal_flsam.reshape((nmc,n_s))
+    hrvmean_sam=hrvmean_flsam.reshape((nmc,n_s))
+    hrvsig2_sam=hrvsig2_flsam.reshape((nmc,n_s))
+    vlongal_sam=vlongal_flsam.reshape((nmc,n_s))
+    vlonmean_sam=vlonmean_flsam.reshape((nmc,n_s))
+    vlonsig2_sam=vlonsig2_flsam.reshape((nmc,n_s))
+
+# log likelihood of each stars
+    lnlkstar=logsumexp(-(hrvgal_sam-hrvmean_sam)**2/(2.0*hrvsig2_sam) \
+       -(vlongal_sam-vlonmean_sam)**2/(2.0*vlonsig2_sam) \
+      ,axis=0,b=1.0/(2.0*np.pi*np.sqrt(hrvsig2_sam)*np.sqrt(vlonsig2_sam)))
+
+    lnlk=np.nansum(lnlkstar)
+
+  else:
 # stellar velocity in Galactic rest frame
 # line-of-sight velocity
-  hrvgal_s=hrv_s-hrvsys-Vrsun*np.cos(glonrad_s)+Vphsun*np.sin(glonrad_s)
-# longitude velocity
-  vlongal_s=vlon_s+Vrsun*np.sin(glonrad_s)+Vphsun*np.cos(glonrad_s)
-#  vlongal_s=np.zeros(n_s)
-#  for i in range(n_s):
-#    if glonrad_s[i]<np.pi:
-#      vlongal_s[i]=vlon_s[i]+Vrsun*np.sin(glonrad_s[i])+Vphsun*np.cos(glonrad_s[i])
-#    else:
-#      vlongal_s[i]=vlon_s[i]-Vrsun*np.sin(glonrad_s[i])+Vphsun*np.cos(glonrad_s[i])
-
+    hrvgal_s=hrv_s-hrvsys-Vrsun*np.cos(glonrad_s)+Vphsun*np.sin(glonrad_s)
+# longitude velocity   
+    vlongal_s=vlon_s+Vrsun*np.sin(glonrad_s)+Vphsun*np.cos(glonrad_s)
 # calculate parameters at stellar position
-  rgal_s=np.sqrt(R0**2+distxy_s**2-2.0*R0*distxy_s*np.cos(glonrad_s))
-  phi_s=np.arccos((R0**2+rgal_s**2-distxy_s**2)/(2.0*R0*rgal_s))
-  phi_s[glonrad_s>np.pi]=-phi_s[glonrad_s>np.pi]
-  VcR_s=VcR0+(rgal_s-R0)*dVcdR
+    rgal_s=np.sqrt(R0**2+distxy_s**2-2.0*R0*distxy_s*np.cos(glonrad_s))
+    phi_s=np.arccos((R0**2+rgal_s**2-distxy_s**2)/(2.0*R0*rgal_s))
+    phi_s[glonrad_s>np.pi]=-phi_s[glonrad_s>np.pi]
+    VcR_s=VcR0+(rgal_s-R0)*dVcdR
 # asymmetric drift
-  sigr_s=sigrR0*np.exp(-(rgal_s-R0)/hsig)
-  Vasym_s=0.5*((sigr_s**2)/VcR_s)*(Xsq-1.0+rgal_s*(1.0/hr+2.0/hsig))
+    sigr_s=sigrR0*np.exp(-(rgal_s-R0)/hsig)
+    Vasym_s=0.5*((sigr_s**2)/VcR_s)*(Xsq-1.0+rgal_s*(1.0/hr+2.0/hsig))
 # expected mean hrvmean and dispersion
-  hrvmean_s=(VcR_s-Vasym_s)*np.sin(phi_s+glonrad_s)
+    hrvmean_s=(VcR_s-Vasym_s)*np.sin(phi_s+glonrad_s)
 # add error in vlos
-  hrvsig2_s=(sigr_s**2)*(1.0+(np.sin(phi_s+glonrad_s)**2)*(Xsq-1.0)) \
+    hrvsig2_s=(sigr_s**2)*(1.0+(np.sin(phi_s+glonrad_s)**2)*(Xsq-1.0)) \
            +errhrv_s**2
 # expected mean vlonmean and dispersion
-  vlonmean_s=(VcR_s-Vasym_s)*np.cos(phi_s+glonrad_s)
+    vlonmean_s=(VcR_s-Vasym_s)*np.cos(phi_s+glonrad_s)
 # add error in vlon
-  vlonsig2_s=(sigr_s**2)*(1.0+(np.cos(phi_s+glonrad_s)**2)*(Xsq-1.0)) \
+    vlonsig2_s=(sigr_s**2)*(1.0+(np.cos(phi_s+glonrad_s)**2)*(Xsq-1.0)) \
             +errvlon_s**2
 
-  lnlk=np.nansum(-0.5*((hrvgal_s-hrvmean_s)**2/hrvsig2_s \
-    +(vlongal_s-vlonmean_s)**2/vlonsig2_s) \
-    -np.log(2.0*np.pi*np.sqrt(hrvsig2_s)*np.sqrt(vlonsig2_s)))
+    lnlk=np.nansum(-0.5*((hrvgal_s-hrvmean_s)**2/hrvsig2_s \
+      +(vlongal_s-vlonmean_s)**2/vlonsig2_s) \
+      -np.log(2.0*np.pi*np.sqrt(hrvsig2_s)*np.sqrt(vlonsig2_s)))
 
 # radial velocity only
 #  lnlk=np.nansum(-0.5*((hrvgal_s-hrvmean_s)**2/hrvsig2_s) \
@@ -105,7 +155,7 @@ def lnlike(modelp,flags,fixvals,n_s,hrv_s,vlon_s,distxy_s,glonrad_s \
 def lnprior(modelp,flags,fixvals):
 
 # read flags
-  hrhsig_fix,hrvsys_fit,dVcdR_fit=flags
+  hrhsig_fix,hrvsys_fit,dVcdR_fit,mcerrlike=flags
 # model parameters
   VcR0=modelp[0]
   Vphsun=modelp[1]
@@ -146,8 +196,8 @@ def lnprior(modelp,flags,fixvals):
 #  R0prior_sig=0.1
 # Prior for R0 from Jo Bovy's recommendation on 28 June 2017
   R0prior=8.1
-#  R0prior_sig=0.1
-  R0prior_sig=0.4
+  R0prior_sig=0.1
+#  R0prior_sig=0.4
 # Prior for R0 from de Gris & Bono (2016)
 #  R0prior=8.3
 #  R0prior_sig=0.45
@@ -157,14 +207,12 @@ def lnprior(modelp,flags,fixvals):
   return lnp
 
 # define the final ln probability
-def lnprob(modelp,flags,fixvals,n_s,hrv_s,vlon_s,distxy_s,glonrad_s \
-  ,errhrv_s,errvlon_s):
+def lnprob(modelp,flags,fixvals,stardata):
 
   lp=lnprior(modelp,flags,fixvals)
   if not np.isfinite(lp):
     return -np.inf
-  return lp+lnlike(modelp,flags,fixvals,n_s,hrv_s,vlon_s,distxy_s,glonrad_s \
-                  ,errhrv_s,errvlon_s)
+  return lp+lnlike(modelp,flags,fixvals,stardata)
 
 ##### main programme start here #####
 
@@ -178,14 +226,20 @@ mocktest_adderr=False
 
 # mc sampling of likelihood take into account the errors
 mcerrlike=True
+# mcerrlike=False
+# number of MC sample for Vlon sample
+# nmc=1000
+nmc=100
 
 # including velocity error? reading verr_mc.fits
 withverr=True
 # withverr=False
+if mcerrlike==True:
+  withverr=True
 
 # hr and hsig fix or not?
-hrhsig_fix=True
-# hrhsig_fix=False
+# hrhsig_fix=True
+hrhsig_fix=False
 
 # allow HRV systematic error
 # only if hrhsig_fix, allow to explore hrvsys
@@ -200,7 +254,7 @@ dVcdR_fit=True
 # dVcdR_fit=False
 
 # set all flags
-flags=hrhsig_fix,hrvsys_fit,dVcdR_fit
+flags=hrhsig_fix,hrvsys_fit,dVcdR_fit,mcerrlike
 
 # fixed parameter
 hr=3.0
@@ -236,7 +290,7 @@ if withverr==True:
 # rescaled Fe/H
   fehv=star['FeH']
   modv=star['Mod']
-  moderrv=star['e_Mod']
+  errmodv=star['e_Mod']
   distv=np.power(10.0,(modv+5.0)/5.0)*0.001
 # RA, DEC from Gaia data
   rav=star['RA']
@@ -274,7 +328,7 @@ else:
 # rescaled Fe/H
   fehv=star['__Fe_H_']
   modv=star['Mod']
-  moderrv=star['e_Mod']
+  errmodv=star['e_Mod']
   distv=np.power(10.0,(star['Mod']+5.0)/5.0)*0.001
 # RA, DEC from Gaia data
   rav=star['_RA']
@@ -308,7 +362,7 @@ else:
 # rescaled Fe/H
   fehv=np.hstack((fehv,star['__Fe_H_']))
   modv=np.hstack((modv,star['Mod']))
-  moderrv=np.hstack((moderrv,star['e_Mod']))
+  errmodv=np.hstack((errmodv,star['e_Mod']))
   distv=np.hstack((distv,np.power(10.0,(star['Mod']+5.0)/5.0)*0.001))
 # RA, DEC from Gaia data
   rav=np.hstack((rav,star['_RA_1']))
@@ -346,7 +400,7 @@ else:
 # rescaled Fe/H
     fehv=np.hstack((fehv,star['__Fe_H_']))
     modv=np.hstack((modv,star['Mod']))
-    moderrv=np.hstack((moderrv,star['e_Mod']))
+    errmodv=np.hstack((errmodv,star['e_Mod']))
     distv=np.hstack((distv,np.power(10.0,(star['Mod']+5.0)/5.0)*0.001))
 # RA, DEC from Gaia data
     rav=np.hstack((rav,star['_RA']))
@@ -392,7 +446,7 @@ zmaxlim=0.2
 # zmaxlim=1000.0
 distmaxlim=10.0
 if withverr==True:
-  zwerr=np.power(10.0,(modv+moderrv+5.0)/5.0)*0.001*np.sin(glatradv)
+  zwerr=np.power(10.0,(modv+errmodv+5.0)/5.0)*0.001*np.sin(glatradv)
   sindx=np.where((np.sqrt(errvlonv**2+errhrvv**2)<Verrlim) & \
                  (np.abs(zwerr)<zmaxlim) & \
                  (distv<distmaxlim))
@@ -400,7 +454,7 @@ if withverr==True:
 #                (logp>0.8))
 
 else:
-  zwerr=np.power(10.0,(modv+moderrv+5.0)/5.0)*0.001*np.sin(glatradv)
+  zwerr=np.power(10.0,(modv+errmodv+5.0)/5.0)*0.001*np.sin(glatradv)
   errpmravkms=pmvconst*distv*errpmrav
   errpmdecvkms=pmvconst*distv*errpmdecv
 # sindx=np.where((np.sqrt(errpmrav**2+errpmdecv**2+errhrvv**2)<Verrlim) & \
@@ -426,18 +480,27 @@ hrvs=hrvv[sindx]
 vlons=vlonv[sindx]
 distxys=distxyv[sindx]
 glonrads=glonradv[sindx]
+glatrads=glatradv[sindx]
 errvlons=errvlonv[sindx]
 errhrvs=errhrvv[sindx]
+ras=rav[sindx]
+decs=decv[sindx]
+pmras=pmrav[sindx]
 errpmras=errpmrav[sindx]
+pmdecs=pmdecv[sindx]
 errpmdecs=errpmdecv[sindx]
 pmradec_corrs=pmradec_corrv[sindx]
 mods=modv[sindx]
-moderrs=moderrv[sindx]
+errmods=errmodv[sindx]
 
 nstars=len(hrvs)
 print ' number of selected stars=',nstars  
 
 nadds=0
+if mcerrlike==True and nadds>0:
+  print 'Error mcerrlike cannot have additional particles. nadds=',nadds
+  sys.exit()
+
 if mocktest==True and nadds>0:
 # add or replace
   mock_add=False
@@ -449,13 +512,20 @@ if mocktest==True and nadds>0:
     vlonadds=np.zeros(nadds)
     distxyadds=np.random.uniform(dmin,dmax,nadds)
     glonadds=np.random.uniform(0.0,2.0*np.pi,nadds)
+# add the particles in the disk plane
+    glatadds=np.zeros(nadds)
     hrvs=np.hstack((hrvs,hrvadds))
     vlons=np.hstack((vlons,vlonadds))
     distxys=np.hstack((distxys,distxyadds))
     glonrads=np.hstack((glonrads,glonadds))
+    glatrads=np.hstack((glatrads,glatadds))
     errvhrvs=np.hstack((errhrvs,np.zeros(nadds)))
     errvlons=np.hstack((errvlons,np.zeros(nadds)))
-    pmradec_corrs=np.hstack((errvlons,np.ones(nadds)))
+    pmras=np.hstack((pmras,np.zeros(nadds)))
+    errpmras=np.hstack((errpmras,np.zeros(nadds)))
+    pmdecs=np.hstack((pmdecs,np.zeros(nadds)))
+    errpmdecs=np.hstack((errpmdecs,np.zeros(nadds)))
+    pmradec_corrs=np.hstack((pmradec_corrs,np.ones(nadds)))
     nstars=nstars+nadds
     print ' number of stars after addition of stars =',nstars  
   else:
@@ -468,12 +538,19 @@ if mocktest==True and nadds>0:
     distxyadds=np.sqrt(np.random.uniform(0.0,1.0,nadds))*dmax
 #    distxyadds=np.random.uniform(dmin,dmax,nadds)
     glonadds=np.random.uniform(0.0,2.0*np.pi,nadds)
+# add the particles in the disk plane
+    glatadds=np.zeros(nadds)
     hrvs=hrvadds
     vlons=vlonadds
     distxys=distxyadds
     glonrads=glonadds
+    glatrads=glatadds
     errhrvs=np.zeros(nadds)
     errvlons=np.zeros(nadds)
+    pmras=np.zeros(nadds)
+    errpmras=np.zeros(nadds)
+    pmdecs=np.zeros(nadds)
+    errpmdecs=np.zeros(nadds)
     pmradec_corrs=np.ones(nadds)
     nstars=nadds
     print ' number of stars after replacing =',nstars  
@@ -542,6 +619,10 @@ if dVcdR_fit==True:
   dVcdR=modelp[ip]
 else: 
   dVcdR=0.0
+
+if mocktest_adderr==True:
+  dists=np.power(10.0,(np.random.normal(mods,errmods,nstars)+5.0)/5.0)*0.001
+  distxys=dists*np.cos(glatrads)
 
 xpos=-R0+np.cos(glonrads)*distxys
 ypos=np.sin(glonrads)*distxys
@@ -617,25 +698,94 @@ if withverr==False:
 # set errhrvs zero 
   errhrvs=np.zeros(nstars)
 
+# set input star data
+if mcerrlike==True:
+  # sampled data for vlon
+  # sample from proper-motion covariance matrix
+  pmradec_mc=np.empty((nstars,2,nmc))
+  pmradec_mc[:,0,:]=np.atleast_2d(pmras).T
+  pmradec_mc[:,1,:]=np.atleast_2d(pmdecs).T
+  for ii in range(nstars):
+    # constract covariance matrix
+    tcov=np.zeros((2,2))
+    tcov[0,0]=errpmras[ii]**2.0/2.0  # /2 because of symmetrization below
+    tcov[1,1]=errpmdecs[ii]**2.0/2.0
+    tcov[0,1]=pmradec_corrs[ii]*errpmras[ii]*errpmdecs[ii]
+    # symmetrise
+    tcov=(tcov+tcov.T)
+    # Cholesky decomp.
+    L=np.linalg.cholesky(tcov)
+    pmradec_mc[ii]+=np.dot(L,np.random.normal(size=(2,nmc)))
+
+  pmra_samp=pmradec_mc[:,0,:]
+
+  # calculate errors
+  ratile=np.tile(ras,(nmc,1)).flatten()
+  dectile=np.tile(decs,(nmc,1)).flatten()
+  pmllbb_sam=bovy_coords.pmrapmdec_to_pmllpmbb(pmradec_mc[:,0,:].T.flatten() \
+    ,pmradec_mc[:,1:].T.flatten(),ratile,dectile,degree=True,epoch=2000.0)
+  # reshape
+  pmllbb_sam=pmllbb_sam.reshape((nmc,nstars,2))
+  # distance MC sampling 
+  mod_sam=np.random.normal(mods,errmods,(nmc,nstars))
+  # 
+  dist_sam=np.power(10.0,(mod_sam+5.0)/5.0)*0.001
+  dist_err=np.std(dist_sam,axis=0)
+  # pmlonv is x cos(b) and vlat sample
+  vlon_sam=pmvconst*pmllbb_sam[:,:,0].flatten()*dist_sam.flatten()
+  vlon_sam=vlon_sam.reshape((nmc,nstars))
+  vlat_sam=pmvconst*pmllbb_sam[:,:,1].flatten()*dist_sam.flatten()
+  vlat_sam=vlat_sam.reshape((nmc,nstars))
+  # calculate errors
+  vlon_err=np.std(vlon_sam,axis=0)
+  vlat_err=np.std(vlat_sam,axis=0)
+  # MC sampling of hrv
+  hrv_sam=np.random.normal(hrvs,errhrvs,(nmc,nstars))
+  hrv_err=np.std(hrv_sam,axis=0)
+
+  # plot error
+  gs1=gridspec.GridSpec(2,1)
+  gs1.update(left=0.15,right=0.9,bottom=0.1,top=0.95,hspace=0,wspace=0)
+
+  # Vlon
+#  plt.subplot(gs1[0])
+  # labes
+#  plt.xlabel(r"Distance",fontsize=18,fontname="serif",style="normal")
+#  plt.ylabel(r"$V_{lon}$",fontsize=18,fontname="serif",style="normal")
+  # scatter plot
+#  plt.errorbar(distxys,vlons,xerr=dist_err,yerr=vlon_err,fmt='ok')
+  # HRV
+#  plt.subplot(gs1[1])
+  # labes
+#  plt.xlabel(r"Distance",fontsize=18,fontname="serif",style="normal")
+#  plt.ylabel(r"HRV",fontsize=18,fontname="serif",style="normal")
+  # scatter plot
+#  plt.errorbar(distxys,hrvs,xerr=dist_err,yerr=hrv_err,fmt='ok')
+#  plt.show()
+
+  stardata=nstars,nmc,glonrads,glatrads,hrv_sam,dist_sam,vlon_sam
+else:
+  stardata=nstars,hrvs,vlons,distxys,glonrads,errhrvs,errvlons
+
 # initial likelihood
-lnlikeini=lnprob(modelp,flags,fixvals,nstars,hrvs,vlons,distxys,glonrads \
-                 ,errhrvs,errvlons)
+lnlikeini=lnprob(modelp,flags,fixvals,stardata)
 
 print ' Initial parameters=',modelp
 print ' Initial ln likelihood=',lnlikeini
 
 # define number of dimension for parameters
-ndim,nwalkers=nparam,100
-# ndim,nwalkers=nparam,50
+# ndim,nwalkers=nparam,100
+ndim,nwalkers=nparam,50
 # initialise walker's position
 pos=[modelp+1.0e-3*np.random.randn(ndim) for i in range(nwalkers)]
 
 # set up the sampler
 sampler = emcee.EnsembleSampler(nwalkers,ndim,lnprob,args=(flags,fixvals \
-  ,nstars,hrvs,vlons,distxys,glonrads,errhrvs,errvlons))
+                                                           ,stardata))
 
 # MCMC run
-sampler.run_mcmc(pos,1000)
+# sampler.run_mcmc(pos,1000)
+sampler.run_mcmc(pos,500)
 
 # burn in
 samples=sampler.chain[:,200:,:].reshape((-1,ndim))
@@ -652,8 +802,8 @@ while i<ndim:
   i+=1
 
 # best-model likelihood
-lnlikebf=lnprob(mpmean,flags,fixvals,nstars,hrvs,vlons,distxys,glonrads \
-                ,errhrvs,errvlons)
+lnlikebf=lnprob(mpmean,flags,fixvals,stardata)
+
 print ' Best model (MCMC mean)=',lnlikebf
 
 # corner plot
