@@ -3,7 +3,7 @@
 # axsymdiskm-fit.py
 #  fitting axisymmetric disk model to Cepheids kinematics data
 #
-#  4 July 2017 - written D. Kawata
+#  6 July 2017 - written D. Kawata
 #
 
 import pyfits
@@ -218,28 +218,29 @@ def lnprob(modelp,flags,fixvals,stardata):
 
 # flags
 # mock data test
-# mocktest=True
-mocktest=False
+mocktest=True
+# mocktest=False
 # add V and distance error to mock data. 
-# mocktest_adderr=True
-mocktest_adderr=False
+mocktest_adderr=True
+# mocktest_adderr=False
 
 # mc sampling of likelihood take into account the errors
-mcerrlike=True
-# mcerrlike=False
+# mcerrlike=True
+mcerrlike=False
 # number of MC sample for Vlon sample
 # nmc=1000
 nmc=100
 
-# including velocity error? reading verr_mc.fits
-withverr=True
-# withverr=False
+# only effective mcerrlike==False, take into account Verror only,
+# ignore distance error
+# withverr=True
+withverr=False
 if mcerrlike==True:
   withverr=True
 
 # hr and hsig fix or not?
-# hrhsig_fix=True
-hrhsig_fix=False
+hrhsig_fix=True
+# hrhsig_fix=False
 
 # allow HRV systematic error
 # only if hrhsig_fix, allow to explore hrvsys
@@ -255,6 +256,10 @@ dVcdR_fit=True
 
 # set all flags
 flags=hrhsig_fix,hrvsys_fit,dVcdR_fit,mcerrlike
+
+# print flags
+print ' hrhsig_fix,hrvsys_fit,dVcdR_fit,mcerrlike=',flags
+print ' withverr=',withverr
 
 # fixed parameter
 hr=3.0
@@ -274,165 +279,41 @@ else:
 # constant for proper motion unit conversion
 pmvconst=4.74047
 
-if withverr==True:
 # read verr_mc.py output
-  infile='verr_mc.fits'
-  star_hdus=pyfits.open(infile)
-  star=star_hdus[1].data
-  star_hdus.close()
+infile='verr_mc.fits'
+star_hdus=pyfits.open(infile)
+star=star_hdus[1].data
+star_hdus.close()
 # number of data points
-  nstarv=len(star['Mod'])
+nstarv=len(star['Mod'])
 # name
-  name=star['Name']
+name=star['Name']
 # extract the necessary particle info
-  glonv=star['Glon']
-  glatv=star['Glat']
+glonv=star['Glon']
+glatv=star['Glat']
 # rescaled Fe/H
-  fehv=star['FeH']
-  modv=star['Mod']
-  errmodv=star['e_Mod']
-  distv=np.power(10.0,(modv+5.0)/5.0)*0.001
+fehv=star['FeH']
+modv=star['Mod']
+errmodv=star['e_Mod']
+distv=np.power(10.0,(modv+5.0)/5.0)*0.001
 # RA, DEC from Gaia data
-  rav=star['RA']
-  decv=star['DEC']
-  pmrav=star['PMRA']
-  pmdecv=star['PMDEC']
-  errpmrav=star['e_PMRA']
-  errpmdecv=star['e_PMDEC']
-  pmradec_corrv=star['PMRADEC_corr']
-  vlonv=star['Vlon']
-  errvlonv=star['e_Vlon']
-  vlatv=star['Vlat']
-  errvlatv=star['e_Vlat']
-  hrvv=star['HRV']
-  errhrvv=star['e_HRV']
-  logp=star['logPer']
+rav=star['RA']
+decv=star['DEC']
+pmrav=star['PMRA']
+pmdecv=star['PMDEC']
+errpmrav=star['e_PMRA']
+errpmdecv=star['e_PMDEC']
+pmradec_corrv=star['PMRADEC_corr']
+vlonv=star['Vlon']
+errvlonv=star['e_Vlon']
+vlatv=star['Vlat']
+errvlatv=star['e_Vlat']
+hrvv=star['HRV']
+errhrvv=star['e_HRV']
+logp=star['logPer']
 # radian glon and glat
-  glonradv=glonv*np.pi/180.0
-  glatradv=glatv*np.pi/180.0
-
-else:
-# read the data with velocity info.
-  infile='/Users/dkawata/work/obs/Cepheids/Genovali14/G14T34+TGAS+Gorynya.fits'
-  star_hdus=pyfits.open(infile)
-  star=star_hdus[1].data
-  star_hdus.close()
-# number of data points
-  nstarv1=len(star['Mod'])
-  print 'number of stars from 1st file =',nstarv1
-# name
-  name=star['Name_1']
-# extract the necessary particle info
-  glonv=star['_Glon']
-  glatv=star['_Glat']
-# rescaled Fe/H
-  fehv=star['__Fe_H_']
-  modv=star['Mod']
-  errmodv=star['e_Mod']
-  distv=np.power(10.0,(star['Mod']+5.0)/5.0)*0.001
-# RA, DEC from Gaia data
-  rav=star['_RA']
-  decv=star['_DE']
-  pmrav=star['pmra']
-  pmdecv=star['pmdec']
-  errpmrav=star['pmra_error']
-  errpmdecv=star['pmdec_error']
-  pmradec_corrv=star['pmra_pmdec_corr']
-  hrvv=star['HRV']
-  errhrvv=star['e_HRV']
-  logp=star['logPer']
-  photnotes=star['Notes']
-
-### read 2nd file
-  infile='/Users/dkawata/work/obs/Cepheids/Genovali14/G14T34+TGAS+Melnik15-Gorynya_wHRV.fits'
-  star_hdus=pyfits.open(infile)
-  star=star_hdus[1].data
-  star_hdus.close()
-# read the 2nd data
-# number of data points
-  nstarv2=len(star['Mod'])
-  print 'number of stars from 2nd file =',nstarv2
-  nstarv=nstarv1+nstarv2
-  print 'total number of stars =',nstarv
-# name
-  name=np.hstack((name,star['Name']))
-# extract the necessary particle info
-  glonv=np.hstack((glonv,star['_Glon']))
-  glatv=np.hstack((glatv,star['_Glat']))
-# rescaled Fe/H
-  fehv=np.hstack((fehv,star['__Fe_H_']))
-  modv=np.hstack((modv,star['Mod']))
-  errmodv=np.hstack((errmodv,star['e_Mod']))
-  distv=np.hstack((distv,np.power(10.0,(star['Mod']+5.0)/5.0)*0.001))
-# RA, DEC from Gaia data
-  rav=np.hstack((rav,star['_RA_1']))
-  decv=np.hstack((decv,star['_DE_1']))
-  pmrav=np.hstack((pmrav,star['pmra']))
-  pmdecv=np.hstack((pmdecv,star['pmdec']))
-  errpmrav=np.hstack((errpmrav,star['pmra_error']))
-  errpmdecv=np.hstack((errpmdecv,star['pmdec_error']))
-  pmradec_corrv=np.hstack((pmradec_corrv,star['pmra_pmdec_corr']))
-  hrvv=np.hstack((hrvv,star['HRV']))
-  errhrvv=np.hstack((errhrvv,star['e_HRV']))
-  logp=np.hstack((logp,star['logPer']))
-  photnotes=np.hstack((photnotes,star['Notes']))
-
-# read the 3rd data
-  addDDO=True
-# addDDO=False
-  if addDDO==True:
-    infile='/Users/dkawata/work/obs/Cepheids/Genovali14/G14T34+TGAS+DDO16-Gorynya-Melnik15.fits'
-# default HRV error
-    HRVerr=2.0
-    star_hdus=pyfits.open(infile)
-    star=star_hdus[1].data
-    star_hdus.close()
-# number of data points
-    nstarv3=len(star['Mod'])
-    print 'number of stars from 3rd file =',nstarv3
-    nstarv=nstarv1+nstarv2+nstarv3
-    print 'total number of stars =',nstarv
-# name
-    name=np.hstack((name,star['Name']))
-# extract the necessary particle info
-    glonv=np.hstack((glonv,star['_Glon']))
-    glatv=np.hstack((glatv,star['_Glat']))
-# rescaled Fe/H
-    fehv=np.hstack((fehv,star['__Fe_H_']))
-    modv=np.hstack((modv,star['Mod']))
-    errmodv=np.hstack((errmodv,star['e_Mod']))
-    distv=np.hstack((distv,np.power(10.0,(star['Mod']+5.0)/5.0)*0.001))
-# RA, DEC from Gaia data
-    rav=np.hstack((rav,star['_RA']))
-    decv=np.hstack((decv,star['_DE']))
-    pmrav=np.hstack((pmrav,star['pmra']))
-    pmdecv=np.hstack((pmdecv,star['pmdec']))
-    errpmrav=np.hstack((errpmrav,star['pmra_error']))
-    errpmdecv=np.hstack((errpmdecv,star['pmdec_error']))
-    pmradec_corrv=np.hstack((pmradec_corrv,star['pmra_pmdec_corr']))
-    hrvv=np.hstack((hrvv,star['RV_mean']))
-    errhrvv=np.hstack((errhrvv,np.ones(nstarv3)*HRVerr))
-    logp=np.hstack((logp,star['logPer']))
-    photnotes=np.hstack((photnotes,star['Notes']))
-# set error for lonv zero
-  errvlonv=np.zeros(nstarv)
-  errvlatv=np.zeros(nstarv)
-
-# use galpy RA,DEC -> Glon,Glat
-# Tlb=bovy_coords.radec_to_lb(rav,decv,degree=True,epoch=2000.0)
-# degree to radian
-  glonradv=glonv*np.pi/180.0
-  glatradv=glatv*np.pi/180.0
-# convert proper motion from mu_alpha,delta to mu_l,b using bovy_coords
-  pmlonv=np.zeros(nstarv)
-  pmlatv=np.zeros(nstarv)
-  Tpmllbb=bovy_coords.pmrapmdec_to_pmllpmbb(pmrav,pmdecv,rav,decv,degree=True,epoch=2000.0)
-# 
-  pmlonv=Tpmllbb[:,0]
-  pmlatv=Tpmllbb[:,1]
-# pmlonv is pmlon x cons(b) 
-  vlonv=pmvconst*pmlonv*distv
-  vlatv=pmvconst*pmlatv*distv
+glonradv=glonv*np.pi/180.0
+glatradv=glatv*np.pi/180.0
 
 # z position
 zpos=distv*np.sin(glatradv)
@@ -445,36 +326,12 @@ Verrlim=10000.0
 zmaxlim=0.2
 # zmaxlim=1000.0
 distmaxlim=10.0
-if withverr==True:
-  zwerr=np.power(10.0,(modv+errmodv+5.0)/5.0)*0.001*np.sin(glatradv)
-  sindx=np.where((np.sqrt(errvlonv**2+errhrvv**2)<Verrlim) & \
-                 (np.abs(zwerr)<zmaxlim) & \
-                 (distv<distmaxlim))
+zwerr=np.power(10.0,(modv+errmodv+5.0)/5.0)*0.001*np.sin(glatradv)
+sindx=np.where((np.sqrt(errvlonv**2+errhrvv**2)<Verrlim) & \
+               (np.abs(zwerr)<zmaxlim) & \
+               (distv<distmaxlim))
 #                (distv<distmaxlim) & \
 #                (logp>0.8))
-
-else:
-  zwerr=np.power(10.0,(modv+errmodv+5.0)/5.0)*0.001*np.sin(glatradv)
-  errpmravkms=pmvconst*distv*errpmrav
-  errpmdecvkms=pmvconst*distv*errpmdecv
-# sindx=np.where((np.sqrt(errpmrav**2+errpmdecv**2+errhrvv**2)<Verrlim) & \
-#                (np.abs(zpos)<0.2))
-# additional selection with photnotes in Genevali et al. (2014)
-# print np.core.defchararray.ljust(photnotes,1)
-# sindx=np.where((np.sqrt(errpmrav**2+errpmdecv**2+errhrvv**2)<Verrlim) & \
-#               (np.abs(zpos)<0.2))
-#               (np.abs(zpos)<0.2) & \
-#               (np.core.defchararray.ljust(photnotes,2)!='c*'))
-#               (np.core.defchararray.ljust(photnotes,1)=='c'))
-#               (np.logical_or(np.core.defchararray.ljust(photnotes,1)=='a' \
-#               ,np.core.defchararray.ljust(photnotes,1)=='b')))
-# 
-# add distance and longitude selection
-  sindx=np.where((np.sqrt(errpmravkms**2+errpmdecvkms**2+errhrvv**2)<Verrlim) & \
-                 (np.abs(zwerr)<zmaxlim) & \
-                 (distv<distmaxlim))
-#               (logp>0.8))
-#               (glonv>180.0))
 
 hrvs=hrvv[sindx]
 vlons=vlonv[sindx]
@@ -695,8 +552,9 @@ for i in range(nstars):
 f.close()
 
 if withverr==False:
-# set errhrvs zero 
+# set errhrvs and errvlons zero 
   errhrvs=np.zeros(nstars)
+  errvlons=np.zeros(nstars)
 
 # set input star data
 if mcerrlike==True:
