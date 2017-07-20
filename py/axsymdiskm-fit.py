@@ -231,10 +231,10 @@ mocktest_adderr=True
 mcerrlike=True
 # mcerrlike=False
 # number of MC sample for Vlon sample
-# nmc=1000
-nmc=100
+nmc=1000
+# nmc=100
 
-if mocktest==True and mcerrlike==Ture:
+if mocktest==True and mcerrlike==True:
   mocktest_adderr=True
 
 # only effective mcerrlike==False, take into account Verror only,
