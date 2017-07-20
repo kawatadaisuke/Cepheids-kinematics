@@ -217,7 +217,10 @@ def lnprob(modelp,flags,fixvals,stardata):
 ##### main programme start here #####
 
 # flags
-# mock data test
+# use simulation data
+# simdata=Ture
+simdata=False
+# mock data test using the location of input data
 mocktest=True
 # mocktest=False
 # add V and distance error to mock data. 
@@ -225,16 +228,19 @@ mocktest_adderr=True
 # mocktest_adderr=False
 
 # mc sampling of likelihood take into account the errors
-# mcerrlike=True
-mcerrlike=False
+mcerrlike=True
+# mcerrlike=False
 # number of MC sample for Vlon sample
 # nmc=1000
 nmc=100
 
+if mocktest==True and mcerrlike==Ture:
+  mocktest_adderr=True
+
 # only effective mcerrlike==False, take into account Verror only,
 # ignore distance error
-# withverr=True
-withverr=False
+withverr=True
+# withverr=False
 if mcerrlike==True:
   withverr=True
 
@@ -279,76 +285,83 @@ else:
 # constant for proper motion unit conversion
 pmvconst=4.74047
 
-# read verr_mc.py output
-infile='verr_mc.fits'
-star_hdus=pyfits.open(infile)
-star=star_hdus[1].data
-star_hdus.close()
-# number of data points
-nstarv=len(star['Mod'])
-# name
-name=star['Name']
-# extract the necessary particle info
-glonv=star['Glon']
-glatv=star['Glat']
-# rescaled Fe/H
-fehv=star['FeH']
-modv=star['Mod']
-errmodv=star['e_Mod']
-distv=np.power(10.0,(modv+5.0)/5.0)*0.001
-# RA, DEC from Gaia data
-rav=star['RA']
-decv=star['DEC']
-pmrav=star['PMRA']
-pmdecv=star['PMDEC']
-errpmrav=star['e_PMRA']
-errpmdecv=star['e_PMDEC']
-pmradec_corrv=star['PMRADEC_corr']
-vlonv=star['Vlon']
-errvlonv=star['e_Vlon']
-vlatv=star['Vlat']
-errvlatv=star['e_Vlat']
-hrvv=star['HRV']
-errhrvv=star['e_HRV']
-logp=star['logPer']
-# radian glon and glat
-glonradv=glonv*np.pi/180.0
-glatradv=glatv*np.pi/180.0
+if simdata==False:
+  # read verr_mc.py output
+  infile='verr_mc.fits'
+  star_hdus=pyfits.open(infile)
+  star=star_hdus[1].data
+  star_hdus.close()
+  # number of data points
+  nstarv=len(star['Mod'])
+  # name
+  name=star['Name']
+  # extract the necessary particle info
+  glonv=star['Glon']
+  glatv=star['Glat']
+  # rescaled Fe/H
+  fehv=star['FeH']
+  modv=star['Mod']
+  errmodv=star['e_Mod']
+  distv=np.power(10.0,(modv+5.0)/5.0)*0.001
+  # RA, DEC from Gaia data
+  rav=star['RA']
+  decv=star['DEC']
+  pmrav=star['PMRA']
+  pmdecv=star['PMDEC']
+  errpmrav=star['e_PMRA']
+  errpmdecv=star['e_PMDEC']
+  pmradec_corrv=star['PMRADEC_corr']
+  vlonv=star['Vlon']
+  errvlonv=star['e_Vlon']
+  vlatv=star['Vlat']
+  errvlatv=star['e_Vlat']
+  hrvv=star['HRV']
+  errhrvv=star['e_HRV']
+  logp=star['logPer']
+  # radian glon and glat
+  glonradv=glonv*np.pi/180.0
+  glatradv=glatv*np.pi/180.0
 
-# z position
-zpos=distv*np.sin(glatradv)
-distxyv=distv*np.cos(glatradv)
+  # z position
+  zpos=distv*np.sin(glatradv)
+  distxyv=distv*np.cos(glatradv)
 
-# select only velocity error is small enough
-# Verrlim=5.0
-# Verrlim=10.0
-Verrlim=10000.0
-zmaxlim=0.2
-# zmaxlim=1000.0
-distmaxlim=10.0
-zwerr=np.power(10.0,(modv+errmodv+5.0)/5.0)*0.001*np.sin(glatradv)
-sindx=np.where((np.sqrt(errvlonv**2+errhrvv**2)<Verrlim) & \
-               (np.abs(zwerr)<zmaxlim) & \
-               (distv<distmaxlim))
+  # select only velocity error is small enough
+  # Verrlim=5.0
+  # Verrlim=10.0
+  Verrlim=10000.0
+  zmaxlim=0.2
+  # zmaxlim=1000.0
+  distmaxlim=10.0
+  zwerr=np.power(10.0,(modv+errmodv+5.0)/5.0)*0.001*np.sin(glatradv)
+  sindx=np.where((np.sqrt(errvlonv**2+errhrvv**2)<Verrlim) & \
+                 (np.abs(zwerr)<zmaxlim) & \
+                 (distv<distmaxlim))
 #                (distv<distmaxlim) & \
 #                (logp>0.8))
 
-hrvs=hrvv[sindx]
-vlons=vlonv[sindx]
-distxys=distxyv[sindx]
-glonrads=glonradv[sindx]
-glatrads=glatradv[sindx]
-errvlons=errvlonv[sindx]
-errhrvs=errhrvv[sindx]
-ras=rav[sindx]
-decs=decv[sindx]
-pmras=pmrav[sindx]
-errpmras=errpmrav[sindx]
-pmdecs=pmdecv[sindx]
-errpmdecs=errpmdecv[sindx]
-pmradec_corrs=pmradec_corrv[sindx]
-mods=modv[sindx]
-errmods=errmodv[sindx]
+  hrvs=hrvv[sindx]
+  vlons=vlonv[sindx]
+  distxys=distxyv[sindx]
+  glonrads=glonradv[sindx]
+  glatrads=glatradv[sindx]
+  errvlons=errvlonv[sindx]
+  errhrvs=errhrvv[sindx]
+  ras=rav[sindx]
+  decs=decv[sindx]
+  pmras=pmrav[sindx]
+  errpmras=errpmrav[sindx]
+  pmdecs=pmdecv[sindx]
+  errpmdecs=errpmdecv[sindx]
+  pmradec_corrs=pmradec_corrv[sindx]
+  mods=modv[sindx]
+  errmods=errmodv[sindx]
+# else:
+# read sim data output from psy
+
+# project HRV to radial velocity at b=0
+hrvs=hrvs*np.cos(glatrads)
+errhrvs=errhrvs*np.cos(glatrads)
 
 nstars=len(hrvs)
 print ' number of selected stars=',nstars  
