@@ -204,6 +204,11 @@ def lnprior(modelp,flags,fixvals):
 
   lnp=-0.5*(R0-R0prior)**2/(R0prior_sig**2)-np.log(np.sqrt(2.0*np.pi)*R0prior_sig)
 
+# Xsq prior
+#  Xsqprior=0.7
+#  Xsqprior_sig=0.1  
+#  lnp=lnp-0.5*(Xsq-Xsqprior)**2/(Xsqprior_sig**2)-np.log(np.sqrt(2.0*np.pi)*Xsqprior_sig)
+
   return lnp
 
 # define the final ln probability
@@ -218,21 +223,21 @@ def lnprob(modelp,flags,fixvals,stardata):
 
 # flags
 # use simulation data
-# simdata=Ture
-simdata=False
+simdata=True
+# simdata=False
 # mock data test using the location of input data
-mocktest=True
-# mocktest=False
+# mocktest=True
+mocktest=False
 # add V and distance error to mock data. 
-mocktest_adderr=True
-# mocktest_adderr=False
+# mocktest_adderr=True
+mocktest_adderr=False
 
 # mc sampling of likelihood take into account the errors
-mcerrlike=True
-# mcerrlike=False
+# mcerrlike=True
+mcerrlike=False
 # number of MC sample for Vlon sample
-nmc=1000
-# nmc=100
+# nmc=1000
+nmc=100
 
 if mocktest==True and mcerrlike==True:
   mocktest_adderr=True
@@ -266,13 +271,14 @@ flags=hrhsig_fix,hrvsys_fit,dVcdR_fit,mcerrlike
 # print flags
 print ' hrhsig_fix,hrvsys_fit,dVcdR_fit,mcerrlike=',flags
 print ' withverr=',withverr
+print ' simdata=',simdata
 
 # fixed parameter
-hr=3.0
+hr=4.0
 if hrhsig_fix==True:
 # fix hsig and hr
-  hsig=200.0
-#  hsig=4.0
+#  hsig=200.0
+  hsig=8.0
   fixvals=np.zeros(3)
   fixvals[0]=hr
   fixvals[1]=hsig
@@ -356,8 +362,45 @@ if simdata==False:
   pmradec_corrs=pmradec_corrv[sindx]
   mods=modv[sindx]
   errmods=errmodv[sindx]
-# else:
-# read sim data output from psy
+else:
+  ifile='lbsels.dat'
+  # read sim data output from psy
+  rdata=np.loadtxt(ifile,comments='#')
+  print 'read file ',ifile
+  xsim=rdata[:,0]
+  ysim=rdata[:,1]
+  zsim=rdata[:,2]
+  vxsim=rdata[:,3]
+  vysim=rdata[:,4]
+  vzsim=rdata[:,5]
+  glonsim=rdata[:,6]
+  glatsim=rdata[:,7]
+  d3dsim=rdata[:,8]
+  vlonsim=rdata[:,9]
+  hrvsim=rdata[:,10]
+  agesim=rdata[:,11]
+  # selection
+  zmaxlim=0.1
+  sindx=np.where(zsim<zmaxlim)
+  # set other values
+  distxys=np.sqrt(xsim[sindx]**2+ysim[sindx]**2)
+  print ' N selected particles=',len(xsim[sindx])
+  glonrads=glonsim[sindx]*np.pi/180.0
+  glatrads=glatsim[sindx]*np.pi/180.0
+  vlons=vlonsim[sindx]
+  hrvs=hrvsim[sindx]
+  errvlons=np.zeros_like(vlons)
+  errhrvs=np.zeros_like(hrvs)
+  # unused set zero
+  ras=np.zeros_like(hrvs)
+  decs=np.zeros_like(hrvs)
+  pmras=np.zeros_like(hrvs)
+  errpmras=np.zeros_like(hrvs)
+  pmdecs=np.zeros_like(hrvs)
+  errpmdecs=np.zeros_like(hrvs)
+  pmradec_corrs=np.zeros_like(hrvs)
+  mods=np.zeros_like(hrvs)
+  errmods=np.zeros_like(hrvs)
 
 # project HRV to radial velocity at b=0
 hrvs=hrvs*np.cos(glatrads)
@@ -440,7 +483,10 @@ nparam=6
 modelpname=np.array(['$V_c(R_0)$','$V_{\phi,\odot}$' \
   ,'$V_{R,\odot}$','$\sigma_R(R_0)$','$X^2$','$R_0$'])
 # modelp0=np.array([237.2, 248.8, -8.2, 13.5, 0.87, 8.20])
-modelp0=np.array([230.0, 240.0, -8.0, 13.0, 0.8, 8.10])
+# for mock
+# modelp0=np.array([230.0, 240.0, -8.0, 13.0, 0.8, 8.10])
+# mwm
+modelp0=np.array([200.0, 210.0, -9.0, 20.0, 0.7, 8.10])
 if hrhsig_fix==False:
 # fit hsig
   nparam+=1
