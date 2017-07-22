@@ -387,6 +387,7 @@ namepme=name[sindx]
 xposvpme=xposv[sindx]
 yposvpme=yposv[sindx]
 delfehvpme=delfehv[sindx]
+fehvpme=fehv[sindx]
 vxvpme=vxv[sindx]
 vyvpme=vyv[sindx]
 distpme=distv[sindx]
@@ -433,7 +434,11 @@ while i<15:
 # number of points
 nsp=100
 isp=0
-numsp=3
+plotsparm=False
+if plotsparm==True:
+  numsp=3
+else:
+  numsp=0
 while isp<numsp:
 # angle in R14 is clock-wise start at the Sun at (0.0, Rsun)
 # convert to the one anti-clockwise starting from +x, y=0
@@ -487,7 +492,11 @@ while isp<numsp:
 
 # wild guess of extension
 isp=0
-numsp=2
+if plotsparm==True:
+  numsp=2
+else:
+  numps=0
+
 while isp<numsp:
 # angle in R14 is clock-wise start at the Sun at (0.0, Rsun)
 # convert to the one anti-clockwise starting from +x, y=0
@@ -527,28 +536,29 @@ while isp<numsp:
     plt.plot(xsp,ysp,'r--')
   isp+=1
 
-# plot tangent 
-dist=6.0
-isp=0
-nsp=2
-xline=np.zeros(2)
-yline=np.zeros(2)
-xline[0]=xsunr14
-yline[0]=0.0
-while isp<nsp:
-  if isp==0:
-# Crux Tangent
-    tang=310.0
-  else:
-# Carina Tangent
-    tang=284.0
-  xline[1]=xsunr14+dist*np.cos(tang*np.pi/180.0)
-  yline[1]=dist*np.sin(tang*np.pi/180.0)
-  if isp==0:
-    plt.plot(xline,yline,'b--')
-  else:
-    plt.plot(xline,yline,'r--')
-  isp+=1
+if plotsparm==True:
+  # plot tangent 
+  dist=6.0
+  isp=0
+  nsp=2
+  xline=np.zeros(2)
+  yline=np.zeros(2)
+  xline[0]=xsunr14
+  yline[0]=0.0
+  while isp<nsp:
+    if isp==0:
+    # Crux Tangent
+      tang=310.0
+    else:
+  # Carina Tangent
+      tang=284.0
+    xline[1]=xsunr14+dist*np.cos(tang*np.pi/180.0)
+    yline[1]=dist*np.sin(tang*np.pi/180.0)
+    if isp==0:
+      plt.plot(xline,yline,'b--')
+    else:
+      plt.plot(xline,yline,'r--')
+    isp+=1
 
 # velocity arrow 
 i=0
@@ -657,7 +667,53 @@ plt.axis([rminplot,rmaxplot,-50.0,50.0])
 plt.xlabel("R (kpc)",fontsize=18,fontname="serif")
 cbar=plt.colorbar()
 cbar.set_label(r'$\delta$[Fe/H]')
+plt.show()
 
+# rotation velocity vs. [Fe/H]
+# subtract vcirc
+vrot0pme=vrot0pme-vcirc
+#
+fehmin=-0.3
+fehmax=0.3
+nfehbin=6
+# number of stars
+np_feh=np.histogram(fehvpme,nfehbin,(fehmin,fehmax))[0]
+# mean [Fe/H]
+mean_feh=np.histogram(fehvpme,nfehbin,(fehmin,fehmax),weights=fehvpme)[0]/np_feh
+# mean
+vrotm_feh=np.histogram(fehvpme,nfehbin,(fehmin,fehmax),weights=vrot0pme)[0]/np_feh
+# square mean
+vrot2m_feh=np.histogram(fehvpme,nfehbin,(fehmin,fehmax),weights=vrot0pme**2)[0]/np_feh
+# dispersion
+vrotsig_feh=np.sqrt(vrot2m_feh-vrotm_feh**2)/np.sqrt(np_feh)
+print ' [Fe/H]bin,mean=',mean_feh
+print ' Vrot,mean=',vrotm_r
+print ' Vsig,rot=',vrotsig_r
 
+# linear fit
+mfit=np.polyfit(mean_feh,vrotm_feh,1,w=1.0/vrotsig_feh)
+print ' linear regression with polyfit=',mfit
+slope, intercept, r_value, p_value, std_err = stats.linregress(mean_feh,vrotm_feh)
+print ' slope, intercept,err =',slope,intercept,std_err
+
+# plot
+# [Fe/H] vs Vrot 
+# labes
+plt.xlabel(r"[Fe/H]",fontsize=18,fontname="serif")
+plt.ylabel(r"$\rm V_{rot}$",fontsize=18,fontname="serif",style="normal")
+# scatter plot
+plt.scatter(fehvpme,vrot0pme,c=delfehvpme,s=30,vmin=-0.25,vmax=0.25)
+# hexbin plot
+# plt.hexbin(rgalpme,vrot0pme,bins='log',gridsize=300,cmap=cm.jet)
+# plot mean
+plt.errorbar(mean_feh,vrotm_feh,yerr=vrotsig_feh,fmt='ok')
+# plot fit
+nsp=100
+xsp=np.linspace(fehmin,fehmax,nsp)
+ysp=slope*xsp+intercept
+plt.plot(xsp,ysp,'b-')
+plt.axis([-1.0,0.6,-100.0,50.0])
+cbar=plt.colorbar()
+cbar.set_label(r'$\delta$[Fe/H]')
 
 plt.show()
