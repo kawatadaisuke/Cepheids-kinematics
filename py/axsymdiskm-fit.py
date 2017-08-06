@@ -244,8 +244,8 @@ mocktest=False
 mocktest_adderr=False
 
 # mc sampling of likelihood take into account the errors
-mcerrlike=True
-# mcerrlike=False
+# mcerrlike=True
+mcerrlike=False
 # number of MC sample for Vlon sample
 # nmc=1000
 nmc=100
@@ -615,6 +615,19 @@ hrvgals=hrvs-hrvsys-Vrsun*np.cos(glonrads)+Vphsun*np.sin(glonrads)
 vlongals=vlons+Vrsun*np.sin(glonrads)+Vphsun*np.cos(glonrads)
 # calculate parameters at stellar position
 rgals=np.sqrt(R0**2+distxys**2-2.0*R0*distxys*np.cos(glonrads))
+# rotation velocity
+# th is angle between dxy and rgals
+costh=(R0**2-rgals**2-distxys**2)/(-2.0*rgals*distxys)
+sinth=np.sqrt(1.0-costh**2)
+# radial and rotation velocity
+vradgals=np.zeros_like(glonrads)
+vrotgals=np.zeros_like(glonrads)
+sindx=np.where(glonrads<=np.pi)
+vradgals[sindx]=costh[sindx]*hrvgals[sindx]+sinth[sindx]*vlongals[sindx]
+vrotgals[sindx]=sinth[sindx]*hrvgals[sindx]-costh[sindx]*vlongals[sindx]
+sindx=np.where(glonrads>np.pi)
+vradgals[sindx]=costh[sindx]*hrvgals[sindx]-sinth[sindx]*vlongals[sindx]
+vrotgals[sindx]=-sinth[sindx]*hrvgals[sindx]-costh[sindx]*vlongals[sindx]
 phis=np.arccos((R0**2+rgals**2-distxys**2)/(2.0*R0*rgals))
 phis[ypos<0]=-phis[ypos<0]
 VcRs=VcR0+(rgals-R0)*dVcdR
@@ -631,10 +644,10 @@ vlonsig2s=(sigrR0**2)*(1.0+(np.cos(phis+glonrads)**2)*(Xsq-1.0))
 f=open('axsymdiskm-fit_hrvvlonmean_test.asc','w')
 i=0
 for i in range(nstars):
-  print >>f,"%f %f %f %f %f %f %f %f %f %f %f %f %f %f" %(xpos[i],ypos[i] \
+  print >>f,"%f %f %f %f %f %f %f %f %f %f %f %f %f %f %f %f" %(xpos[i],ypos[i] \
    ,glonrads[i],rgals[i],hrvs[i],vlons[i],hrvgals[i],vlongals[i] \
    ,phis[i],Vasyms[i],hrvmeans[i],np.sqrt(hrvsig2s[i]) \
-   ,vlonmeans[i],np.sqrt(vlonsig2s[i]))
+   ,vlonmeans[i],np.sqrt(vlonsig2s[i]),vradgals[i],vrotgals[i])
 f.close()
 
 if withverr==False:
