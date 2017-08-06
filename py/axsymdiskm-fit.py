@@ -3,7 +3,7 @@
 # axsymdiskm-fit.py
 #  fitting axisymmetric disk model to Cepheids kinematics data
 #
-#  6 July 2017 - written D. Kawata
+#  6 Aug. 2017 - written D. Kawata
 #
 
 import pyfits
@@ -204,6 +204,17 @@ def lnprior(modelp,flags,fixvals):
 
   lnp=-0.5*(R0-R0prior)**2/(R0prior_sig**2)-np.log(np.sqrt(2.0*np.pi)*R0prior_sig)
 
+# prior for angular speed
+# mocktest target
+  omgsun_prior=240.0/8.1
+  omgsun_prior_sig=0.12
+# Bland-Hawthorn & Gerhard (2016)
+  omgsun_prior=30.24
+  omgsun_prior_sig=0.12
+
+  omgsun=Vphsun/R0
+  lnp=lnp-0.5*(omgsun-omgsun_prior)**2/(omgsun_prior_sig**2)-np.log(np.sqrt(2.0*np.pi)*omgsun_prior_sig)
+
 # Xsq prior
 #  Xsqprior=0.7
 #  Xsqprior_sig=0.1  
@@ -223,8 +234,8 @@ def lnprob(modelp,flags,fixvals,stardata):
 
 # flags
 # use simulation data
-simdata=True
-# simdata=False
+# simdata=True
+simdata=False
 # mock data test using the location of input data
 # mocktest=True
 mocktest=False
@@ -233,8 +244,8 @@ mocktest=False
 mocktest_adderr=False
 
 # mc sampling of likelihood take into account the errors
-# mcerrlike=True
-mcerrlike=False
+mcerrlike=True
+# mcerrlike=False
 # number of MC sample for Vlon sample
 # nmc=1000
 nmc=100
@@ -278,7 +289,7 @@ hr=4.0
 if hrhsig_fix==True:
 # fix hsig and hr
 #  hsig=200.0
-  hsig=8.0
+  hsig=10.0
   fixvals=np.zeros(3)
   fixvals[0]=hr
   fixvals[1]=hsig
@@ -378,7 +389,7 @@ else:
   d3dsim=rdata[:,8]
   vlonsim=rdata[:,9]
   hrvsim=rdata[:,10]
-  agesim=rdata[:,11]
+#  agesim=rdata[:,11]
   # selection
   zmaxlim=0.1
   sindx=np.where(zsim<zmaxlim)
@@ -482,11 +493,15 @@ nparam=6
 # initial values
 modelpname=np.array(['$V_c(R_0)$','$V_{\phi,\odot}$' \
   ,'$V_{R,\odot}$','$\sigma_R(R_0)$','$X^2$','$R_0$'])
-# modelp0=np.array([237.2, 248.8, -8.2, 13.5, 0.87, 8.20])
+# Bland-Hawthorn & Gerhard (2016), Vsun, V, Vrad
+modelp0=np.array([237.2, 248.8, -10.0, 13.5, 0.87, 8.20])
 # for mock
 # modelp0=np.array([230.0, 240.0, -8.0, 13.0, 0.8, 8.10])
-# mwm
-modelp0=np.array([200.0, 210.0, -9.0, 20.0, 0.7, 8.10])
+# mwm 
+# modelp0=np.array([210.0, 220.0, -10.0, 13.0, 0.55, 8.0])
+# # local Vc is 204.7 at 8.04 kpc
+# wrong parameters
+# modelp0=np.array([210.0, 210.0, -10.0, 20.0, 1.0, 8.1])
 if hrhsig_fix==False:
 # fit hsig
   nparam+=1
@@ -499,22 +514,34 @@ if hrvsys_fit==True:
 if dVcdR_fit==True:
   nparam+=1
   modelp0=np.hstack((modelp0,-3.0))
+# mw39h10-1j
+#  modelp0=np.hstack((modelp0,1.76))
   modelpname=np.hstack((modelpname,'$dV_c(R_0)/dR$'))
 
 print ' N parameter fit=',nparam
 print ' parameters name=',modelpname
 
-modelp=modelp0
+modelp=np.copy(modelp0)
 
 # assign initial values for test output
 # these will be used for target parameters for mock data
 # model parameters
-VcR0=modelp[0]
-Vphsun=modelp[1]
-Vrsun=modelp[2]
-sigrR0=modelp[3]
-Xsq=modelp[4]
-R0=modelp[5]
+if mocktest==True:
+  modelp0[0]=230.0
+  modelp0[1]=240.0
+  modelp0[2]=-9.0
+  modelp0[3]=13.0
+  modelp0[4]=0.8
+  modelp0[5]=8.10
+  print ' Mock test with reassigned velocity with true modelp=',modelp0
+
+VcR0=modelp0[0]
+Vphsun=modelp0[1]
+Vrsun=modelp0[2]
+sigrR0=modelp0[3]
+Xsq=modelp0[4]
+R0=modelp0[5]
+
 ip=6
 if hrhsig_fix==True:
 # fixed parameters
@@ -694,7 +721,9 @@ print ' Initial ln likelihood=',lnlikeini
 # ndim,nwalkers=nparam,100
 ndim,nwalkers=nparam,50
 # initialise walker's position
-pos=[modelp+1.0e-3*np.random.randn(ndim) for i in range(nwalkers)]
+# pos=[modelp+1.0e-3*np.random.randn(ndim) for i in range(nwalkers)]
+# pos=[modelp+0.2*np.fabs(modelp)*np.random.randn(ndim) for i in range(nwalkers)]
+pos=[modelp+np.fabs(modelp)*(-0.05+0.1*np.random.rand(ndim)) for i in range(nwalkers)]
 
 # set up the sampler
 sampler = emcee.EnsembleSampler(nwalkers,ndim,lnprob,args=(flags,fixvals \
@@ -725,7 +754,7 @@ print ' Best model (MCMC mean)=',lnlikebf
 
 # corner plot
 # VcR0,Vphsun,Vrsun,sigrR0,hsig,Xsq,R0=modelp
-if mocktest==True:
+if mocktest==True or simdata==True:
   fig = corner.corner(samples, \
       labels=modelpname,truths=modelp0)
 else:
