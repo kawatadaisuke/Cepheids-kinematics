@@ -206,11 +206,12 @@ def lnprior(modelp,flags,fixvals):
 
 # prior for angular speed
 # mocktest target
-  omgsun_prior=240.0/8.1
+#  omgsun_prior=240.0/8.1
+  omgsun_prior=220.0/8.0
   omgsun_prior_sig=0.12
 # Bland-Hawthorn & Gerhard (2016)
-  omgsun_prior=30.24
-  omgsun_prior_sig=0.12
+#  omgsun_prior=30.24
+#  omgsun_prior_sig=0.12
 
   omgsun=Vphsun/R0
   lnp=lnp-0.5*(omgsun-omgsun_prior)**2/(omgsun_prior_sig**2)-np.log(np.sqrt(2.0*np.pi)*omgsun_prior_sig)
@@ -236,6 +237,9 @@ def lnprob(modelp,flags,fixvals,stardata):
 # use simulation data
 # simdata=True
 simdata=False
+# use simulation data selected from the observed targets
+simdata_targets=True
+# simdata_targets=False
 # mock data test using the location of input data
 # mocktest=True
 mocktest=False
@@ -302,7 +306,74 @@ else:
 # constant for proper motion unit conversion
 pmvconst=4.74047
 
-if simdata==False:
+if simdata==True:
+  ifile='lbsels.dat'
+  # read sim data output from psy
+  rdata=np.loadtxt(ifile,comments='#')
+  print 'read file ',ifile
+  xsim=rdata[:,0]
+  ysim=rdata[:,1]
+  zsim=rdata[:,2]
+  vxsim=rdata[:,3]
+  vysim=rdata[:,4]
+  vzsim=rdata[:,5]
+  glonsim=rdata[:,6]
+  glatsim=rdata[:,7]
+  d3dsim=rdata[:,8]
+  vlonsim=rdata[:,9]
+  hrvsim=rdata[:,10]
+#  agesim=rdata[:,11]
+  # selection
+  zmaxlim=0.1
+  sindx=np.where(zsim<zmaxlim)
+  # set other values
+  distxys=np.sqrt(xsim[sindx]**2+ysim[sindx]**2)
+  print ' N selected particles=',len(xsim[sindx])
+  glonrads=glonsim[sindx]*np.pi/180.0
+  glatrads=glatsim[sindx]*np.pi/180.0
+  vlons=vlonsim[sindx]
+  hrvs=hrvsim[sindx]
+  errvlons=np.zeros_like(vlons)
+  errhrvs=np.zeros_like(hrvs)
+  # unused set zero
+  ras=np.zeros_like(hrvs)
+  decs=np.zeros_like(hrvs)
+  pmras=np.zeros_like(hrvs)
+  errpmras=np.zeros_like(hrvs)
+  pmdecs=np.zeros_like(hrvs)
+  errpmdecs=np.zeros_like(hrvs)
+  pmradec_corrs=np.zeros_like(hrvs)
+  mods=np.zeros_like(hrvs)
+  errmods=np.zeros_like(hrvs)
+  logps=np.zeros_like(hrvs)
+  names=map(str,glonsim[sindx])
+elif simdata_targets==True:
+  ifile='lbsels_targets.dat'
+  # read sim data output from psy
+  rdata=np.loadtxt(ifile,comments='#')
+  print 'read file ',ifile
+  print ' 1st line=',rdata[0,:]
+  glonrads=rdata[:,0]*np.pi/180.0
+  print ' N selected particles=',len(glonrads)
+  glatrads=rdata[:,1]*np.pi/180.0
+  distxys=rdata[:,2]
+  hrvs=rdata[:,3]
+  vlons=rdata[:,4]
+  errhrvs=rdata[:,5]
+  errvlons=rdata[:,6]
+  mods=rdata[:,7]
+  errmods=rdata[:,8]
+  errpmras=rdata[:,21]
+  errpmdecs=rdata[:,22]
+  pmradec_corrs=rdata[:,23]
+  logps=rdata[:,24]
+  # unused set zero
+  ras=np.zeros_like(hrvs)
+  decs=np.zeros_like(hrvs)
+  pmras=np.zeros_like(hrvs)
+  pmdecs=np.zeros_like(hrvs)
+  names=map(str,rdata[:,0])
+else:
   # read verr_mc.py output
   infile='verr_mc.fits'
   star_hdus=pyfits.open(infile)
@@ -316,7 +387,7 @@ if simdata==False:
   glonv=star['Glon']
   glatv=star['Glat']
   # rescaled Fe/H
-  fehv=star['FeH']
+#  fehv=star['FeH']
   modv=star['Mod']
   errmodv=star['e_Mod']
   distv=np.power(10.0,(modv+5.0)/5.0)*0.001
@@ -330,8 +401,8 @@ if simdata==False:
   pmradec_corrv=star['PMRADEC_corr']
   vlonv=star['Vlon']
   errvlonv=star['e_Vlon']
-  vlatv=star['Vlat']
-  errvlatv=star['e_Vlat']
+#  vlatv=star['Vlat']
+#  errvlatv=star['e_Vlat']
   hrvv=star['HRV']
   errhrvv=star['e_HRV']
   logp=star['logPer']
@@ -373,45 +444,8 @@ if simdata==False:
   pmradec_corrs=pmradec_corrv[sindx]
   mods=modv[sindx]
   errmods=errmodv[sindx]
-else:
-  ifile='lbsels.dat'
-  # read sim data output from psy
-  rdata=np.loadtxt(ifile,comments='#')
-  print 'read file ',ifile
-  xsim=rdata[:,0]
-  ysim=rdata[:,1]
-  zsim=rdata[:,2]
-  vxsim=rdata[:,3]
-  vysim=rdata[:,4]
-  vzsim=rdata[:,5]
-  glonsim=rdata[:,6]
-  glatsim=rdata[:,7]
-  d3dsim=rdata[:,8]
-  vlonsim=rdata[:,9]
-  hrvsim=rdata[:,10]
-#  agesim=rdata[:,11]
-  # selection
-  zmaxlim=0.1
-  sindx=np.where(zsim<zmaxlim)
-  # set other values
-  distxys=np.sqrt(xsim[sindx]**2+ysim[sindx]**2)
-  print ' N selected particles=',len(xsim[sindx])
-  glonrads=glonsim[sindx]*np.pi/180.0
-  glatrads=glatsim[sindx]*np.pi/180.0
-  vlons=vlonsim[sindx]
-  hrvs=hrvsim[sindx]
-  errvlons=np.zeros_like(vlons)
-  errhrvs=np.zeros_like(hrvs)
-  # unused set zero
-  ras=np.zeros_like(hrvs)
-  decs=np.zeros_like(hrvs)
-  pmras=np.zeros_like(hrvs)
-  errpmras=np.zeros_like(hrvs)
-  pmdecs=np.zeros_like(hrvs)
-  errpmdecs=np.zeros_like(hrvs)
-  pmradec_corrs=np.zeros_like(hrvs)
-  mods=np.zeros_like(hrvs)
-  errmods=np.zeros_like(hrvs)
+  logps=logp[sindx]
+  names=name[sindx]
 
 # project HRV to radial velocity at b=0
 hrvs=hrvs*np.cos(glatrads)
@@ -484,11 +518,11 @@ f=open('axsymdiskm-fit_sels.asc','w')
 i=0
 print >>f,"# nstar= %10d" % (nstars)
 for i in range(nstars):
-  print >>f,"%12.5e %12.5e %12.5e %12.5e %12.5e %12.5e %12.5e %12.5e %12.5e %12.5e %12.5e %12.5e %12.5e %12.5e %12.5e %12.5e" \
+  print >>f,"%12.5e %12.5e %12.5e %12.5e %12.5e %12.5e %12.5e %12.5e %12.5e %12.5e %12.5e %12.5e %12.5e %12.5e %12.5e %12.5e %12.5e %20s" \
    %(glonrads[i],glatrads[i],distxys[i],hrvs[i],vlons[i] \
      ,errhrvs[i],errvlons[i],mods[i],errmods[i] \
      ,ras[i],decs[i],pmras[i],pmdecs[i],errpmras[i],errpmdecs[i] \
-     ,pmradec_corrs[i])
+     ,pmradec_corrs[i],logps[i],names[i])
 f.close()
 
 ### model fitting
