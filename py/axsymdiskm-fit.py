@@ -3,7 +3,7 @@
 # axsymdiskm-fit.py
 #  fitting axisymmetric disk model to Cepheids kinematics data
 #
-#  6 Aug. 2017 - written D. Kawata
+#  19 Sep. 2017 - written D. Kawata
 #
 
 import pyfits
@@ -482,8 +482,13 @@ if mocktest==True and nadds>0:
 # output selected stars
 f=open('axsymdiskm-fit_sels.asc','w')
 i=0
+print >>f,"# nstar= %10d" % (nstars)
 for i in range(nstars):
-  print >>f,"%f %f %f %f" %(glonrads[i],distxys[i],hrvs[i],vlons[i])
+  print >>f,"%12.5e %12.5e %12.5e %12.5e %12.5e %12.5e %12.5e %12.5e %12.5e %12.5e %12.5e %12.5e %12.5e %12.5e %12.5e %12.5e" \
+   %(glonrads[i],glatrads[i],distxys[i],hrvs[i],vlons[i] \
+     ,errhrvs[i],errvlons[i],mods[i],errmods[i] \
+     ,ras[i],decs[i],pmras[i],pmdecs[i],errpmras[i],errpmdecs[i] \
+     ,pmradec_corrs[i])
 f.close()
 
 ### model fitting
