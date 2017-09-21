@@ -195,7 +195,7 @@ def lnprior(modelp,flags,fixvals):
 #  R0prior=8.2
 #  R0prior_sig=0.1
 # Prior for R0 from Jo Bovy's recommendation on 28 June 2017
-  R0prior=8.1
+  R0prior=8.0
   R0prior_sig=0.1
 #  R0prior_sig=0.4
 # Prior for R0 from de Gris & Bono (2016)
@@ -248,8 +248,8 @@ mocktest=False
 mocktest_adderr=False
 
 # mc sampling of likelihood take into account the errors
-# mcerrlike=True
-mcerrlike=False
+mcerrlike=True
+# mcerrlike=False
 # number of MC sample for Vlon sample
 # nmc=1000
 nmc=100
@@ -352,9 +352,11 @@ elif simdata_targets==True:
   # read sim data output from psy
   rdata=np.loadtxt(ifile,comments='#')
   print 'read file ',ifile
-  print ' 1st line=',rdata[0,:]
+#  print ' 1st line=',rdata[0,:]
+  glondegs=rdata[:,0]
   glonrads=rdata[:,0]*np.pi/180.0
   print ' N selected particles=',len(glonrads)
+  glatdegs=rdata[:,1]
   glatrads=rdata[:,1]*np.pi/180.0
   distxys=rdata[:,2]
   hrvs=rdata[:,3]
@@ -363,15 +365,36 @@ elif simdata_targets==True:
   errvlons=rdata[:,6]
   mods=rdata[:,7]
   errmods=rdata[:,8]
-  errpmras=rdata[:,21]
-  errpmdecs=rdata[:,22]
-  pmradec_corrs=rdata[:,23]
-  logps=rdata[:,24]
-  # unused set zero
-  ras=np.zeros_like(hrvs)
-  decs=np.zeros_like(hrvs)
-  pmras=np.zeros_like(hrvs)
-  pmdecs=np.zeros_like(hrvs)
+  errpmras=rdata[:,22]
+  errpmdecs=rdata[:,23]
+  pmradec_corrs=rdata[:,24]
+  logps=rdata[:,25]
+  vlats=rdata[:,26]
+  vxps=rdata[:,27]
+  vyps=rdata[:,28]
+  vzps=rdata[:,29]
+  d3dps=rdata[:,30]
+# get RA, DEC coordinates  
+  Tradec=bovy_coords.lb_to_radec(glondegs,glatdegs,degree=True,epoch=2000.0)
+  ras=Tradec[:,0]
+  decs=Tradec[:,1]
+# km/s to mas/yr
+  pmlons=(vlons/d3dps/pmvconst)*np.cos(glatrads)
+  pmlats=(vlats/d3dps/pmvconst)
+  Tpmradec=bovy_coords.pmllpmbb_to_pmrapmdec(pmlons,pmlats,glondegs,glatdegs,degree=True,epoch=2000.0)
+  pmras=Tpmradec[:,0]
+  pmdecs=Tpmradec[:,1]
+# velocity checks
+#  Tvxyz=bovy_coords.vrpmllpmbb_to_vxvyvz(hrvs,pmlons,pmlats,glondegs,glatdegs,d3dps,degree=True)
+#  f=open('lbsels_targets_vcheck.asc','w')
+#  i=0
+#  print >>f,"# nstar= %10d" % len(glonrads)
+#  for i in range(len(glonrads)):
+#    print >>f,"%12.5e %12.5e %12.5e %12.5e %12.5e %12.5e %12.5e %12.5e %12.5e" \
+#     %(glondegs[i],glatdegs[i],d3dps[i],vxps[i],vyps[i],vzps[i] \
+#       ,Tvxyz[i,0],Tvxyz[i,1],Tvxyz[i,2])
+#  f.close()  
+#
   names=map(str,rdata[:,0])
 else:
   # read verr_mc.py output
