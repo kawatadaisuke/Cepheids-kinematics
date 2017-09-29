@@ -235,11 +235,11 @@ def lnprob(modelp,flags,fixvals,stardata):
 
 # flags
 # use simulation data
-# simdata=True
-simdata=False
+simdata=True
+# simdata=False
 # use simulation data selected from the observed targets
-simdata_targets=True
-# simdata_targets=False
+# simdata_targets=True
+simdata_targets=False
 # mock data test using the location of input data
 # mocktest=True
 mocktest=False
@@ -248,8 +248,8 @@ mocktest=False
 mocktest_adderr=False
 
 # mc sampling of likelihood take into account the errors
-mcerrlike=True
-# mcerrlike=False
+# mcerrlike=True
+mcerrlike=False
 # number of MC sample for Vlon sample
 # nmc=1000
 nmc=100
@@ -556,7 +556,9 @@ nparam=6
 modelpname=np.array(['$V_c(R_0)$','$V_{\phi,\odot}$' \
   ,'$V_{R,\odot}$','$\sigma_R(R_0)$','$X^2$','$R_0$'])
 # Bland-Hawthorn & Gerhard (2016), Vsun, V, Vrad
-modelp0=np.array([237.2, 248.8, -10.0, 13.5, 0.87, 8.20])
+# modelp0=np.array([237.2, 248.8, -10.0, 13.5, 0.87, 8.20])
+# mw39
+modelp0=np.array([210.0, 220.0, -10.0, 30.0, 0.7, 8.0])
 # for mock
 # modelp0=np.array([230.0, 240.0, -8.0, 13.0, 0.8, 8.10])
 # mwm 
@@ -575,9 +577,9 @@ if hrvsys_fit==True:
   modelpname=np.hstack((modelpname,'$V_{los,sys}$'))
 if dVcdR_fit==True:
   nparam+=1
-  modelp0=np.hstack((modelp0,-3.0))
+#  modelp0=np.hstack((modelp0,-3.0))
 # mw39h10-1j
-#  modelp0=np.hstack((modelp0,1.76))
+  modelp0=np.hstack((modelp0,2.0))
   modelpname=np.hstack((modelpname,'$dV_c(R_0)/dR$'))
 
 print ' N parameter fit=',nparam
@@ -811,6 +813,9 @@ sampler.run_mcmc(pos,500)
 # burn in
 samples=sampler.chain[:,200:,:].reshape((-1,ndim))
 
+# save sampler data to file
+np.save('sampler-chains.npy',sampler.chain[:,:,:])
+
 # mean and standard deviation
 mpmean=np.zeros(ndim)
 mpstd=np.zeros(ndim)
@@ -821,6 +826,12 @@ while i<ndim:
   mpstd[i]=np.std(samples[:,i])
   print 'modelp',i,' mean,std= $%6.2f\pm %6.2f$' %(mpmean[i],mpstd[i])
   i+=1
+
+f=open('mcmc_mean_std.asc','w')
+i=0
+for i in range(ndim):
+  print >>f," %12.5e %12.5e" %(mpmean[i],mpstd[i])
+f.close()
 
 # best-model likelihood
 lnlikebf=lnprob(mpmean,flags,fixvals,stardata)
