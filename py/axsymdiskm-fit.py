@@ -192,11 +192,11 @@ def lnprior(modelp,flags,fixvals):
 
   lnp=0.0
 # Prior for R0 from Bland-Hawthorn & Gerhard (2016) 8.2pm0.1
-#  R0prior=8.2
-#  R0prior_sig=0.1
-# Prior for R0 from Jo Bovy's recommendation on 28 June 2017
-  R0prior=8.0
+  R0prior=8.2
   R0prior_sig=0.1
+# Prior for R0 from Jo Bovy's recommendation on 28 June 2017
+#  R0prior=8.1
+#  R0prior_sig=0.1
 #  R0prior_sig=0.4
 # Prior for R0 from de Gris & Bono (2016)
 #  R0prior=8.3
@@ -207,11 +207,11 @@ def lnprior(modelp,flags,fixvals):
 # prior for angular speed
 # mocktest target
 #  omgsun_prior=240.0/8.1
-  omgsun_prior=220.0/8.0
-  omgsun_prior_sig=0.12
-# Bland-Hawthorn & Gerhard (2016)
-#  omgsun_prior=30.24
+#  omgsun_prior=220.0/8.0
 #  omgsun_prior_sig=0.12
+# Bland-Hawthorn & Gerhard (2016)
+  omgsun_prior=30.24
+  omgsun_prior_sig=0.12
 
   omgsun=Vphsun/R0
   lnp=lnp-0.5*(omgsun-omgsun_prior)**2/(omgsun_prior_sig**2)-np.log(np.sqrt(2.0*np.pi)*omgsun_prior_sig)
@@ -235,14 +235,14 @@ def lnprob(modelp,flags,fixvals,stardata):
 
 # flags
 # use simulation data
-simdata=True
-# simdata=False
+# simdata=True
+simdata=False
 # use simulation data selected from the observed targets
 # simdata_targets=True
 simdata_targets=False
 # mock data test using the location of input data
-# mocktest=True
-mocktest=False
+mocktest=True
+# mocktest=False
 # add V and distance error to mock data. 
 # mocktest_adderr=True
 mocktest_adderr=False
@@ -251,8 +251,8 @@ mocktest_adderr=False
 # mcerrlike=True
 mcerrlike=False
 # number of MC sample for Vlon sample
-# nmc=1000
-nmc=100
+nmc=1000
+# nmc=100
 
 if mocktest==True and mcerrlike==True:
   mocktest_adderr=True
@@ -537,16 +537,17 @@ if mocktest==True and nadds>0:
     print ' number of stars after replacing =',nstars  
 
 # output selected stars
-f=open('axsymdiskm-fit_sels.asc','w')
-i=0
-print >>f,"# nstar= %10d" % (nstars)
-for i in range(nstars):
-  print >>f,"%12.5e %12.5e %12.5e %12.5e %12.5e %12.5e %12.5e %12.5e %12.5e %12.5e %12.5e %12.5e %12.5e %12.5e %12.5e %12.5e %12.5e %20s" \
-   %(glonrads[i],glatrads[i],distxys[i],hrvs[i],vlons[i] \
+if nadds==0:
+  f=open('axsymdiskm-fit_sels.asc','w')
+  i=0
+  print >>f,"# nstar= %10d" % (nstars)
+  for i in range(nstars):
+    print >>f,"%12.5e %12.5e %12.5e %12.5e %12.5e %12.5e %12.5e %12.5e %12.5e %12.5e %12.5e %12.5e %12.5e %12.5e %12.5e %12.5e %12.5e %20s" \
+     %(glonrads[i],glatrads[i],distxys[i],hrvs[i],vlons[i] \
      ,errhrvs[i],errvlons[i],mods[i],errmods[i] \
      ,ras[i],decs[i],pmras[i],pmdecs[i],errpmras[i],errpmdecs[i] \
      ,pmradec_corrs[i],logps[i],names[i])
-f.close()
+  f.close()
 
 ### model fitting
 # set initial model parameters
@@ -556,9 +557,9 @@ nparam=6
 modelpname=np.array(['$V_c(R_0)$','$V_{\phi,\odot}$' \
   ,'$V_{R,\odot}$','$\sigma_R(R_0)$','$X^2$','$R_0$'])
 # Bland-Hawthorn & Gerhard (2016), Vsun, V, Vrad
-# modelp0=np.array([237.2, 248.8, -10.0, 13.5, 0.87, 8.20])
+modelp0=np.array([237.2, 248.8, -10.0, 13.5, 0.87, 8.20])
 # mw39
-modelp0=np.array([210.0, 220.0, -10.0, 30.0, 0.7, 8.0])
+# modelp0=np.array([210.0, 220.0, -10.0, 30.0, 0.7, 8.0])
 # for mock
 # modelp0=np.array([230.0, 240.0, -8.0, 13.0, 0.8, 8.10])
 # mwm 
@@ -577,9 +578,9 @@ if hrvsys_fit==True:
   modelpname=np.hstack((modelpname,'$V_{los,sys}$'))
 if dVcdR_fit==True:
   nparam+=1
-#  modelp0=np.hstack((modelp0,-3.0))
+  modelp0=np.hstack((modelp0,-3.6))
 # mw39h10-1j
-  modelp0=np.hstack((modelp0,2.0))
+#  modelp0=np.hstack((modelp0,2.0))
   modelpname=np.hstack((modelpname,'$dV_c(R_0)/dR$'))
 
 print ' N parameter fit=',nparam
@@ -591,12 +592,12 @@ modelp=np.copy(modelp0)
 # these will be used for target parameters for mock data
 # model parameters
 if mocktest==True:
-  modelp0[0]=230.0
-  modelp0[1]=240.0
+  modelp0[0]=236.0
+  modelp0[1]=247.968
   modelp0[2]=-9.0
   modelp0[3]=13.0
-  modelp0[4]=0.8
-  modelp0[5]=8.10
+  modelp0[4]=1.0
+  modelp0[5]=8.20
   print ' Mock test with reassigned velocity with true modelp=',modelp0
 
 VcR0=modelp0[0]
