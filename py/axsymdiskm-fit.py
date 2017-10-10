@@ -71,7 +71,7 @@ def lnlike(modelp,flags,fixvals,stardata):
     vlongal_flsam=vlon_sam.flatten() \
                   +Vrsun*np.sin(glonrad_flsam)+Vphsun*np.cos(glonrad_flsam)
 # calculate parameters at stellar position
-    rgal_flsam=np.sqrt(R0**2+dist_flsam**2-2.0*R0*dist_flsam \
+    rgal_flsam=np.sqrt(R0**2+distxy_flsam**2-2.0*R0*distxy_flsam \
                               *np.cos(glonrad_flsam))
     phi_flsam=np.arccos((R0**2+rgal_flsam**2-distxy_flsam**2) \
                         /(2.0*R0*rgal_flsam))
@@ -568,7 +568,7 @@ nparam=6
 modelpname=np.array(['$V_c(R_0)$','$V_{\phi,\odot}$' \
   ,'$V_{R,\odot}$','$\sigma_R(R_0)$','$X^2$','$R_0$'])
 # Bland-Hawthorn & Gerhard (2016), Vsun, V, Vrad
-modelp0=np.array([237.2, 248.8, -10.0, 13.5, 0.87, 8.20])
+modelp0=np.array([237.2, 248.8, -10.0, 13.0, 1.0, 8.20])
 # mw39
 # modelp0=np.array([210.0, 220.0, -10.0, 30.0, 0.7, 8.0])
 # for mock
