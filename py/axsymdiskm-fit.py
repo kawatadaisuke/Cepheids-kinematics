@@ -106,7 +106,7 @@ def lnlike(modelp,flags,fixvals,stardata):
 
 # log likelihood of each stars
     lnlkstar=logsumexp(-0.5*xtvx_sam \
-                       ,axis=0,b=1.0/(2.0*np.pi*np.sqrt(detv_sam)))
+                       ,axis=0,b=1.0/(2.0*np.pi*np.sqrt(detv_sam)))-np.log(nmc)
 
     lnlk=np.nansum(lnlkstar)
 
@@ -665,17 +665,18 @@ if mocktest==True:
   vxs=vphs*np.sin(angs)-vrads*np.cos(angs)
   vys=vphs*np.cos(angs)+vrads*np.sin(angs)
 # re-set heliocentric velocity
-  if mocktest_adderr==True:
-    hrvs=(vxs+Vrsun)*np.cos(glonrads)+(vys-Vphsun)*np.sin(glonrads) \
-      +np.random.normal(0.0,errvlons,nstars)
-    vlons=-(vxs+Vrsun)*np.sin(glonrads)+(vys-Vphsun)*np.cos(glonrads) \
-      +np.random.normal(0.0,errhrvs,nstars)
-  else:
-    hrvs=(vxs+Vrsun)*np.cos(glonrads)+(vys-Vphsun)*np.sin(glonrads)
-    vlons=-(vxs+Vrsun)*np.sin(glonrads)+(vys-Vphsun)*np.cos(glonrads)
+#  if mocktest_adderr==True:
+#    hrvs=(vxs+Vrsun)*np.cos(glonrads)+(vys-Vphsun)*np.sin(glonrads) \
+#      +np.random.normal(0.0,errvlons,nstars)
+#    vlons=-(vxs+Vrsun)*np.sin(glonrads)+(vys-Vphsun)*np.cos(glonrads) \
+#      +np.random.normal(0.0,errhrvs,nstars)
+#  else:
+# no displacement in velocity
+  hrvs=(vxs+Vrsun)*np.cos(glonrads)+(vys-Vphsun)*np.sin(glonrads)
+  vlons=-(vxs+Vrsun)*np.sin(glonrads)+(vys-Vphsun)*np.cos(glonrads)
 # set no Verr
-    errvlons=np.zeros(nstars)
-    errhrvs=np.zeros(nstars)
+#   errvlons=np.zeros(nstars)
+#   errhrvs=np.zeros(nstars)
   f=open('axsymdiskm-fit_mock_input.asc','w')
   i=0
   for i in range(nstars):
@@ -750,8 +751,6 @@ if mcerrlike==True:
     L=np.linalg.cholesky(tcov)
     pmradec_mc[ii]+=np.dot(L,np.random.normal(size=(2,nmc)))
 
-  pmra_samp=pmradec_mc[:,0,:]
-
   # calculate errors
   ratile=np.tile(ras,(nmc,1)).flatten()
   dectile=np.tile(decs,(nmc,1)).flatten()
@@ -819,8 +818,8 @@ sampler = emcee.EnsembleSampler(nwalkers,ndim,lnprob,args=(flags,fixvals \
                                                            ,stardata))
 
 # MCMC run
-# sampler.run_mcmc(pos,1000)
-sampler.run_mcmc(pos,500)
+sampler.run_mcmc(pos,1000)
+# sampler.run_mcmc(pos,500)
 
 # burn in
 samples=sampler.chain[:,200:,:].reshape((-1,ndim))
@@ -861,5 +860,4 @@ else:
 plt.show()
 
 fig.savefig("modelparam.jpg")
-
 
