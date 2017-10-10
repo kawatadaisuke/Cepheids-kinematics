@@ -3,7 +3,7 @@
 # axsymdiskm-fit.py
 #  fitting axisymmetric disk model to Cepheids kinematics data
 #
-#  19 Sep. 2017 - written D. Kawata
+#  10 Oct. 2017 - written D. Kawata
 #
 
 import pyfits
@@ -83,27 +83,30 @@ def lnlike(modelp,flags,fixvals,stardata):
       +rgal_flsam*(1.0/hr+2.0/hsig))
 # expected mean hrvmean and dispersion
     hrvmean_flsam=(VcR_flsam-Vasym_flsam)*np.sin(phi_flsam+glonrad_flsam)
-# add error in vlos
-    hrvsig2_flsam=(sigr_flsam**2)*(1.0+(np.sin(phi_flsam+glonrad_flsam)**2) \
-      *(Xsq-1.0))
 # expected mean vlonmean and dispersion
     vlonmean_flsam=(VcR_flsam-Vasym_flsam)*np.cos(phi_flsam+glonrad_flsam)
-# add error in vlon
-    vlonsig2_flsam=(sigr_flsam**2)*(1.0+(np.cos(phi_flsam+glonrad_flsam)**2) \
-      *(Xsq-1.0))
-
+# sing(phi+l) and cos(phi+l)
+    sphil=np.sin(phi_flsam+glonrad_flsam)
+    cphil=np.cos(phi_flsam+glonrad_flsam)
+# calculate deteminant 
+    sigr_s2=sigr_flsam**2
+    sigr_s4=sigr_flsam**4
+    detv_flsam=(sigr_s4)*((sphil**2)*Xsq+cphil**2)*((cphil**2)*Xsq+sphil**2) \
+        -(((cphil*sphil)*(Xsq-1.0))**2)*(sigr_s4)
+# X^T V^-1 X
+    xhrv=hrvgal_flsam-hrvmean_flsam
+    xlon=vlongal_flsam-vlonmean_flsam
+    xtvx_flsam=((xhrv**2)*(sigr_s2)*((cphil**2)*Xsq+sphil**2) \
+        -xhrv*xlon*cphil*sphil*(Xsq-1.0)*(sigr_s2) \
+        -xhrv*xlon*cphil*sphil*(sigr_s2)*(Xsq-1.0) \
+        +(xlon**2)*(sigr_s2)*((sphil**2)*Xsq+cphil**2))/detv_flsam
 # reshape the relevant variables
-    hrvgal_sam=hrvgal_flsam.reshape((nmc,n_s))
-    hrvmean_sam=hrvmean_flsam.reshape((nmc,n_s))
-    hrvsig2_sam=hrvsig2_flsam.reshape((nmc,n_s))
-    vlongal_sam=vlongal_flsam.reshape((nmc,n_s))
-    vlonmean_sam=vlonmean_flsam.reshape((nmc,n_s))
-    vlonsig2_sam=vlonsig2_flsam.reshape((nmc,n_s))
+    detv_sam=detv_flsam.reshape((nmc,n_s))
+    xtvx_sam=xtvx_flsam.reshape((nmc,n_s))
 
 # log likelihood of each stars
-    lnlkstar=logsumexp(-(hrvgal_sam-hrvmean_sam)**2/(2.0*hrvsig2_sam) \
-       -(vlongal_sam-vlonmean_sam)**2/(2.0*vlonsig2_sam) \
-      ,axis=0,b=1.0/(2.0*np.pi*np.sqrt(hrvsig2_sam)*np.sqrt(vlonsig2_sam)))
+    lnlkstar=logsumexp(-0.5*xtvx_sam \
+                       ,axis=0,b=1.0/(2.0*np.pi*np.sqrt(detv_sam)))
 
     lnlk=np.nansum(lnlkstar)
 
@@ -121,20 +124,28 @@ def lnlike(modelp,flags,fixvals,stardata):
 # asymmetric drift
     sigr_s=sigrR0*np.exp(-(rgal_s-R0)/hsig)
     Vasym_s=0.5*((sigr_s**2)/VcR_s)*(Xsq-1.0+rgal_s*(1.0/hr+2.0/hsig))
-# expected mean hrvmean and dispersion
-    hrvmean_s=(VcR_s-Vasym_s)*np.sin(phi_s+glonrad_s)
-# add error in vlos
-    hrvsig2_s=(sigr_s**2)*(1.0+(np.sin(phi_s+glonrad_s)**2)*(Xsq-1.0)) \
-           +errhrv_s**2
-# expected mean vlonmean and dispersion
-    vlonmean_s=(VcR_s-Vasym_s)*np.cos(phi_s+glonrad_s)
-# add error in vlon
-    vlonsig2_s=(sigr_s**2)*(1.0+(np.cos(phi_s+glonrad_s)**2)*(Xsq-1.0)) \
-            +errvlon_s**2
-
-    lnlk=np.nansum(-0.5*((hrvgal_s-hrvmean_s)**2/hrvsig2_s \
-      +(vlongal_s-vlonmean_s)**2/vlonsig2_s) \
-      -np.log(2.0*np.pi*np.sqrt(hrvsig2_s)*np.sqrt(vlonsig2_s)))
+# sing(phi+l) and cos(phi+l)
+    sphil=np.sin(phi_s+glonrad_s)
+    cphil=np.cos(phi_s+glonrad_s)
+# expected mean hrvmean 
+    hrvmean_s=(VcR_s-Vasym_s)*sphil
+# expected mean vlonmean 
+    vlonmean_s=(VcR_s-Vasym_s)*cphil
+# note: no error taken into account
+# calculate deteminant 
+    sigr_s2=sigr_s**2
+    sigr_s4=sigr_s**4
+    detv=(sigr_s4)*((sphil**2)*Xsq+cphil**2)*((cphil**2)*Xsq+sphil**2) \
+        -(((cphil*sphil)*(Xsq-1.0))**2)*(sigr_s4)
+# X^T V^-1 X
+    xhrv=hrvgal_s-hrvmean_s
+    xlon=vlongal_s-vlonmean_s
+    xtvx=((xhrv**2)*(sigr_s2)*((cphil**2)*Xsq+sphil**2) \
+        -xhrv*xlon*cphil*sphil*(Xsq-1.0)*(sigr_s2) \
+        -xhrv*xlon*cphil*sphil*(sigr_s2)*(Xsq-1.0) \
+        +(xlon**2)*(sigr_s2)*((sphil**2)*Xsq+cphil**2))/detv
+# likelihood
+    lnlk=np.nansum(-0.5*xtvx-np.log(2.0*np.pi*np.sqrt(detv)))
 
 # radial velocity only
 #  lnlk=np.nansum(-0.5*((hrvgal_s-hrvmean_s)**2/hrvsig2_s) \
@@ -244,15 +255,15 @@ simdata_targets=False
 mocktest=True
 # mocktest=False
 # add V and distance error to mock data. 
-# mocktest_adderr=True
-mocktest_adderr=False
+mocktest_adderr=True
+# mocktest_adderr=False
 
 # mc sampling of likelihood take into account the errors
-# mcerrlike=True
-mcerrlike=False
+mcerrlike=True
+# mcerrlike=False
 # number of MC sample for Vlon sample
-nmc=1000
-# nmc=100
+# nmc=1000
+nmc=100
 
 if mocktest==True and mcerrlike==True:
   mocktest_adderr=True
@@ -487,8 +498,8 @@ if mocktest==True and nadds>0:
   mock_add=False
   if mock_add==True:
 # add more stars
-    dmin=4.0
-    dmax=8.0
+    dmin=0.0
+    dmax=4.0
     hrvadds=np.zeros(nadds)
     vlonadds=np.zeros(nadds)
     distxyadds=np.random.uniform(dmin,dmax,nadds)
