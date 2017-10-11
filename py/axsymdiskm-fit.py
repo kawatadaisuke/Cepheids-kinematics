@@ -255,8 +255,8 @@ simdata_targets=False
 mocktest=True
 # mocktest=False
 # add V and distance error to mock data. 
-mocktest_adderr=True
-# mocktest_adderr=False
+# mocktest_adderr=True
+mocktest_adderr=False
 
 # mc sampling of likelihood take into account the errors
 mcerrlike=True
@@ -264,9 +264,6 @@ mcerrlike=True
 # number of MC sample for Vlon sample
 # nmc=1000
 nmc=100
-
-if mocktest==True and mcerrlike==True:
-  mocktest_adderr=True
 
 # only effective mcerrlike==False, take into account Verror only,
 # ignore distance error
@@ -298,6 +295,9 @@ flags=hrhsig_fix,hrvsys_fit,dVcdR_fit,mcerrlike
 print ' hrhsig_fix,hrvsys_fit,dVcdR_fit,mcerrlike=',flags
 print ' withverr=',withverr
 print ' simdata=',simdata
+print ' mocktest=',mocktest
+print ' mocktest_adderr=',mocktest_adderr
+print ' mcerrlike=',mcerrlike
 
 # fixed parameter
 hr=4.0
@@ -523,7 +523,7 @@ if mocktest==True and nadds>0:
   else:
 # replace the particles.
     dmin=0.0
-    dmax=8.0
+    dmax=4.0
     hrvadds=np.zeros(nadds)
     vlonadds=np.zeros(nadds)
 # ramdomly homogeneous distribution
@@ -639,17 +639,14 @@ if dVcdR_fit==True:
 else: 
   dVcdR=0.0
 
-if mocktest_adderr==True:
-  dists=np.power(10.0,(np.random.normal(mods,errmods,nstars)+5.0)/5.0)*0.001
-  distxys=dists*np.cos(glatrads)
-
 xpos=-R0+np.cos(glonrads)*distxys
 ypos=np.sin(glonrads)*distxys
 rgals=np.sqrt(xpos**2+ypos**2)
 
 if mocktest==True:
+# assign the velocity using the true position
 # test using mock data
-# reassign hrvs, voons
+# reassign hrvs, vlons
 # exponential profile
   sigrs=sigrR0*np.exp(-(rgals-R0)/hsig)
   sigphs=np.sqrt(Xsq)*sigrs
@@ -664,13 +661,6 @@ if mocktest==True:
   angs[ypos<0]=2.0*np.pi-np.arccos(-xpos[ypos<0]/rgals[ypos<0])
   vxs=vphs*np.sin(angs)-vrads*np.cos(angs)
   vys=vphs*np.cos(angs)+vrads*np.sin(angs)
-# re-set heliocentric velocity
-#  if mocktest_adderr==True:
-#    hrvs=(vxs+Vrsun)*np.cos(glonrads)+(vys-Vphsun)*np.sin(glonrads) \
-#      +np.random.normal(0.0,errvlons,nstars)
-#    vlons=-(vxs+Vrsun)*np.sin(glonrads)+(vys-Vphsun)*np.cos(glonrads) \
-#      +np.random.normal(0.0,errhrvs,nstars)
-#  else:
 # no displacement in velocity
   hrvs=(vxs+Vrsun)*np.cos(glonrads)+(vys-Vphsun)*np.sin(glonrads)
   vlons=-(vxs+Vrsun)*np.sin(glonrads)+(vys-Vphsun)*np.cos(glonrads)
@@ -732,6 +722,47 @@ if withverr==False:
   errhrvs=np.zeros(nstars)
   errvlons=np.zeros(nstars)
 
+if mocktest_adderr==True:
+  # add distance modulus error
+  mods=np.random.normal(mods,errmods,nstars)
+  dists=np.power(10.0,(mods+5.0)/5.0)*0.001
+  distxys0=np.copy(distxys)
+  distxys=dists*np.cos(glatrads)
+  # add HRV error
+  hrvs0=np.copy(hrvs)
+  hrvs+=np.random.normal(0.0,errhrvs,nstars)
+  # proper motion error adding
+  pmradecs=np.empty((nstars,2))
+  pmradecs[:,0]=pmras
+  pmradecs[:,1]=pmdecs
+  for ii in range(nstars):
+    tcov=np.zeros((2,2))
+    tcov[0,0]=errpmras[ii]**2.0/2.0  # /2 because of symmetrization below
+    tcov[1,1]=errpmdecs[ii]**2.0/2.0
+    tcov[0,1]=pmradec_corrs[ii]*errpmras[ii]*errpmdecs[ii]
+    # symmetrise
+    tcov=(tcov+tcov.T)
+    # Cholesky decomp.
+    L=np.linalg.cholesky(tcov)
+    pmradecs[ii]+=np.dot(L,np.random.normal(size=(2)))
+  f=open('mocktest_erroradded.asc','w')
+  for i in range(nstars):
+    print >>f,"%f %f %f %f %f %f %f %f %f %f %f %f" \
+      %(distxys0[i],distxys[i] \
+       ,hrvs0[i],hrvs[i],pmras[i],pmdecs[i],pmradecs[i,0],pmradecs[i,1] \
+       ,(distxys[i]-distxys0[i]) \
+       ,(hrvs[i]-hrvs0[i]) \
+       ,(pmras[i]-pmradecs[i,0]) \
+       ,(pmdecs[i]-pmradecs[i,1]))
+  f.close()
+  pmras=pmradecs[:,0]
+  pmdecs=pmradecs[:,1]
+  pmllbbs=bovy_coords.pmrapmdec_to_pmllpmbb(pmras,pmdecs,ras,decs \
+    ,degree=True,epoch=2000.0)
+  # pmlonv is x cos(b) and vlat sample
+  vlons=pmvconst*pmllbbs[:,0]*dists
+  vlats=pmvconst*pmllbbs[:,1]*dists
+
 # set input star data
 if mcerrlike==True:
   # sampled data for vlon
@@ -750,7 +781,13 @@ if mcerrlike==True:
     # Cholesky decomp.
     L=np.linalg.cholesky(tcov)
     pmradec_mc[ii]+=np.dot(L,np.random.normal(size=(2,nmc)))
-
+    # if ii==0:
+    #  f=open('mcpmerradded_ii0.asc','w')
+    #  print ' ii=0 correrr=',pmradec_corrs[ii]
+    #  for i in range(nmc):
+    #    print >>f,"%f %f" \
+    #     %(pmradec_mc[ii,0,i],pmradec_mc[ii,1,i])
+    #  f.close()
   # calculate errors
   ratile=np.tile(ras,(nmc,1)).flatten()
   dectile=np.tile(decs,(nmc,1)).flatten()
@@ -758,8 +795,11 @@ if mcerrlike==True:
     ,pmradec_mc[:,1:].T.flatten(),ratile,dectile,degree=True,epoch=2000.0)
   # reshape
   pmllbb_sam=pmllbb_sam.reshape((nmc,nstars,2))
+
   # distance MC sampling 
   mod_sam=np.random.normal(mods,errmods,(nmc,nstars))
+  # test for no error
+  # mod_sam=np.tile(mods,(nmc,1))
   # 
   dist_sam=np.power(10.0,(mod_sam+5.0)/5.0)*0.001
   dist_err=np.std(dist_sam,axis=0)
@@ -773,12 +813,13 @@ if mcerrlike==True:
   vlat_err=np.std(vlat_sam,axis=0)
   # MC sampling of hrv
   hrv_sam=np.random.normal(hrvs,errhrvs,(nmc,nstars))
+  # test for no error
+  # hrv_sam=np.tile(hrvs,(nmc,1))
   hrv_err=np.std(hrv_sam,axis=0)
 
   # plot error
-  gs1=gridspec.GridSpec(2,1)
-  gs1.update(left=0.15,right=0.9,bottom=0.1,top=0.95,hspace=0,wspace=0)
-
+#  gs1=gridspec.GridSpec(2,1)
+#  gs1.update(left=0.15,right=0.9,bottom=0.1,top=0.95,hspace=0,wspace=0)
   # Vlon
 #  plt.subplot(gs1[0])
   # labes
