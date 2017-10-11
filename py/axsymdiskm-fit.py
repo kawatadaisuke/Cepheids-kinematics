@@ -15,9 +15,14 @@ import matplotlib.gridspec as gridspec
 from scipy import stats
 from galpy.util import bovy_coords
 import emcee
+from emcee.utils import MPIPool
 import corner
 import sys
 from scipy.misc import logsumexp
+from mpi4py import MPI
+
+comm=MPI.COMM_WORLD
+rank=comm.Get_rank()
 
 # define likelihood, constant Vc, sigR, Xsq
 def lnlike(modelp,flags,fixvals,stardata):
@@ -292,12 +297,13 @@ dVcdR_fit=True
 flags=hrhsig_fix,hrvsys_fit,dVcdR_fit,mcerrlike
 
 # print flags
-print ' hrhsig_fix,hrvsys_fit,dVcdR_fit,mcerrlike=',flags
-print ' withverr=',withverr
-print ' simdata=',simdata
-print ' mocktest=',mocktest
-print ' mocktest_adderr=',mocktest_adderr
-print ' mcerrlike=',mcerrlike
+if rank==0:
+  print ' hrhsig_fix,hrvsys_fit,dVcdR_fit,mcerrlike=',flags
+  print ' withverr=',withverr
+  print ' simdata=',simdata
+  print ' mocktest=',mocktest
+  print ' mocktest_adderr=',mocktest_adderr
+  print ' mcerrlike=',mcerrlike
 
 # fixed parameter
 hr=4.0
@@ -308,11 +314,13 @@ if hrhsig_fix==True:
   fixvals=np.zeros(3)
   fixvals[0]=hr
   fixvals[1]=hsig
-  print ' fixed valuse hr,hsig=',hr,hsig
+  if rank==0:
+    print ' fixed valuse hr,hsig=',hr,hsig
 else:
   fixvals=np.zeros(1)
   fixvals[0]=hr
-  print ' fixed valuse hr=',hr
+  if rank==0:
+    print ' fixed valuse hr=',hr
 
 # constant for proper motion unit conversion
 pmvconst=4.74047
@@ -339,7 +347,8 @@ if simdata==True:
   sindx=np.where(zsim<zmaxlim)
   # set other values
   distxys=np.sqrt(xsim[sindx]**2+ysim[sindx]**2)
-  print ' N selected particles=',len(xsim[sindx])
+  if rank==0:
+    print ' N selected particles=',len(xsim[sindx])
   glonrads=glonsim[sindx]*np.pi/180.0
   glatrads=glatsim[sindx]*np.pi/180.0
   vlons=vlonsim[sindx]
@@ -362,11 +371,13 @@ elif simdata_targets==True:
   ifile='lbsels_targets.dat'
   # read sim data output from psy
   rdata=np.loadtxt(ifile,comments='#')
-  print 'read file ',ifile
+  if rank==0:
+    print 'read file ',ifile
 #  print ' 1st line=',rdata[0,:]
   glondegs=rdata[:,0]
   glonrads=rdata[:,0]*np.pi/180.0
-  print ' N selected particles=',len(glonrads)
+  if rank==0:
+    print ' N selected particles=',len(glonrads)
   glatdegs=rdata[:,1]
   glatrads=rdata[:,1]*np.pi/180.0
   distxys=rdata[:,2]
@@ -486,11 +497,13 @@ hrvs=hrvs*np.cos(glatrads)
 errhrvs=errhrvs*np.cos(glatrads)
 
 nstars=len(hrvs)
-print ' number of selected stars=',nstars  
+if rank==0:
+  print ' number of selected stars=',nstars  
 
 nadds=0
 if mcerrlike==True and nadds>0:
-  print 'Error mcerrlike cannot have additional particles. nadds=',nadds
+  if rank==0:
+    print 'Error mcerrlike cannot have additional particles. nadds=',nadds
   sys.exit()
 
 if mocktest==True and nadds>0:
@@ -519,7 +532,8 @@ if mocktest==True and nadds>0:
     errpmdecs=np.hstack((errpmdecs,np.zeros(nadds)))
     pmradec_corrs=np.hstack((pmradec_corrs,np.ones(nadds)))
     nstars=nstars+nadds
-    print ' number of stars after addition of stars =',nstars  
+    if rank==0:
+      print ' number of stars after addition of stars =',nstars  
   else:
 # replace the particles.
     dmin=0.0
@@ -545,10 +559,11 @@ if mocktest==True and nadds>0:
     errpmdecs=np.zeros(nadds)
     pmradec_corrs=np.ones(nadds)
     nstars=nadds
-    print ' number of stars after replacing =',nstars  
+    if rank==0:
+      print ' number of stars after replacing =',nstars  
 
 # output selected stars
-if nadds==0:
+if nadds==0 and rank==0:
   f=open('axsymdiskm-fit_sels.asc','w')
   i=0
   print >>f,"# nstar= %10d" % (nstars)
@@ -594,8 +609,9 @@ if dVcdR_fit==True:
 #  modelp0=np.hstack((modelp0,2.0))
   modelpname=np.hstack((modelpname,'$dV_c(R_0)/dR$'))
 
-print ' N parameter fit=',nparam
-print ' parameters name=',modelpname
+if rank==0:
+  print ' N parameter fit=',nparam
+  print ' parameters name=',modelpname
 
 modelp=np.copy(modelp0)
 
@@ -609,7 +625,8 @@ if mocktest==True:
   modelp0[3]=13.0
   modelp0[4]=1.0
   modelp0[5]=8.20
-  print ' Mock test with reassigned velocity with true modelp=',modelp0
+  if rank==0:
+    print ' Mock test with reassigned velocity with true modelp=',modelp0
 
 VcR0=modelp0[0]
 Vphsun=modelp0[1]
@@ -667,13 +684,14 @@ if mocktest==True:
 # set no Verr
 #   errvlons=np.zeros(nstars)
 #   errhrvs=np.zeros(nstars)
-  f=open('axsymdiskm-fit_mock_input.asc','w')
-  i=0
-  for i in range(nstars):
-    print >>f,"%f %f %f %f %f %f %f %f %f %f %f %f" %(xpos[i],ypos[i] \
-     ,glonrads[i],rgals[i],vrads[i],vphs[i],angs[i],vxs[i],vys[i] \
-     ,hrvs[i],vlons[i],Vasyms[i])
-  f.close()
+  if rank==0:
+    f=open('axsymdiskm-fit_mock_input.asc','w')
+    i=0
+    for i in range(nstars):
+      print >>f,"%f %f %f %f %f %f %f %f %f %f %f %f" %(xpos[i],ypos[i] \
+       ,glonrads[i],rgals[i],vrads[i],vphs[i],angs[i],vxs[i],vys[i] \
+       ,hrvs[i],vlons[i],Vasyms[i])
+    f.close()
 
 # output hrv and vlon input data and expected values from the above parameters
 # line-of-sight velocity
@@ -708,14 +726,15 @@ vlonmeans=(VcRs-Vasyms)*np.cos(phis+glonrads)
 vlonsig2s=(sigrR0**2)*(1.0+(np.cos(phis+glonrads)**2)*(Xsq-1.0))
 
 # output ascii data for test
-f=open('axsymdiskm-fit_hrvvlonmean_test.asc','w')
-i=0
-for i in range(nstars):
-  print >>f,"%f %f %f %f %f %f %f %f %f %f %f %f %f %f %f %f" %(xpos[i],ypos[i] \
-   ,glonrads[i],rgals[i],hrvs[i],vlons[i],hrvgals[i],vlongals[i] \
-   ,phis[i],Vasyms[i],hrvmeans[i],np.sqrt(hrvsig2s[i]) \
-   ,vlonmeans[i],np.sqrt(vlonsig2s[i]),vradgals[i],vrotgals[i])
-f.close()
+if rank==0:
+  f=open('axsymdiskm-fit_hrvvlonmean_test.asc','w')
+  i=0
+  for i in range(nstars):
+    print >>f,"%f %f %f %f %f %f %f %f %f %f %f %f %f %f %f %f" %(xpos[i],ypos[i] \
+     ,glonrads[i],rgals[i],hrvs[i],vlons[i],hrvgals[i],vlongals[i] \
+     ,phis[i],Vasyms[i],hrvmeans[i],np.sqrt(hrvsig2s[i]) \
+     ,vlonmeans[i],np.sqrt(vlonsig2s[i]),vradgals[i],vrotgals[i])
+  f.close()
 
 if withverr==False:
 # set errhrvs and errvlons zero 
@@ -745,16 +764,17 @@ if mocktest_adderr==True:
     # Cholesky decomp.
     L=np.linalg.cholesky(tcov)
     pmradecs[ii]+=np.dot(L,np.random.normal(size=(2)))
-  f=open('mocktest_erroradded.asc','w')
-  for i in range(nstars):
-    print >>f,"%f %f %f %f %f %f %f %f %f %f %f %f" \
-      %(distxys0[i],distxys[i] \
-       ,hrvs0[i],hrvs[i],pmras[i],pmdecs[i],pmradecs[i,0],pmradecs[i,1] \
-       ,(distxys[i]-distxys0[i]) \
-       ,(hrvs[i]-hrvs0[i]) \
-       ,(pmras[i]-pmradecs[i,0]) \
-       ,(pmdecs[i]-pmradecs[i,1]))
-  f.close()
+  if rank==0:
+    f=open('mocktest_erroradded.asc','w')
+    for i in range(nstars):
+      print >>f,"%f %f %f %f %f %f %f %f %f %f %f %f" \
+        %(distxys0[i],distxys[i] \
+         ,hrvs0[i],hrvs[i],pmras[i],pmdecs[i],pmradecs[i,0],pmradecs[i,1] \
+         ,(distxys[i]-distxys0[i]) \
+         ,(hrvs[i]-hrvs0[i]) \
+         ,(pmras[i]-pmradecs[i,0]) \
+         ,(pmdecs[i]-pmradecs[i,1]))
+    f.close()
   pmras=pmradecs[:,0]
   pmdecs=pmradecs[:,1]
   pmllbbs=bovy_coords.pmrapmdec_to_pmllpmbb(pmras,pmdecs,ras,decs \
@@ -843,8 +863,9 @@ else:
 # initial likelihood
 lnlikeini=lnprob(modelp,flags,fixvals,stardata)
 
-print ' Initial parameters=',modelp
-print ' Initial ln likelihood=',lnlikeini
+if rank==0:
+  print ' Initial parameters=',modelp
+  print ' Initial ln likelihood=',lnlikeini
 
 # define number of dimension for parameters
 # ndim,nwalkers=nparam,100
@@ -854,19 +875,27 @@ ndim,nwalkers=nparam,50
 # pos=[modelp+0.2*np.fabs(modelp)*np.random.randn(ndim) for i in range(nwalkers)]
 pos=[modelp+np.fabs(modelp)*(-0.05+0.1*np.random.rand(ndim)) for i in range(nwalkers)]
 
+pool=MPIPool()
+if not pool.is_master():
+  pool.wait()
+  sys.exit(0)
+
 # set up the sampler
 sampler = emcee.EnsembleSampler(nwalkers,ndim,lnprob,args=(flags,fixvals \
-                                                           ,stardata))
+                                                           ,stardata),pool=pool)
 
 # MCMC run
 sampler.run_mcmc(pos,1000)
 # sampler.run_mcmc(pos,500)
 
+pool.close()
+
 # burn in
 samples=sampler.chain[:,200:,:].reshape((-1,ndim))
 
 # save sampler data to file
-np.save('sampler-chains.npy',sampler.chain[:,:,:])
+if rank==0:
+  np.save('sampler-chains.npy',sampler.chain[:,:,:])
 
 # mean and standard deviation
 mpmean=np.zeros(ndim)
@@ -876,19 +905,22 @@ i=0
 while i<ndim:
   mpmean[i]=np.mean(samples[:,i])
   mpstd[i]=np.std(samples[:,i])
-  print 'modelp',i,' mean,std= $%6.2f\pm %6.2f$' %(mpmean[i],mpstd[i])
+  if rank==0:
+    print 'modelp',i,' mean,std= $%6.2f\pm %6.2f$' %(mpmean[i],mpstd[i])
   i+=1
 
-f=open('mcmc_mean_std.asc','w')
-i=0
-for i in range(ndim):
-  print >>f," %12.5e %12.5e" %(mpmean[i],mpstd[i])
-f.close()
+if rank==0:
+  f=open('mcmc_mean_std.asc','w')
+  i=0
+  for i in range(ndim):
+    print >>f," %12.5e %12.5e" %(mpmean[i],mpstd[i])
+  f.close()
 
 # best-model likelihood
 lnlikebf=lnprob(mpmean,flags,fixvals,stardata)
 
-print ' Best model (MCMC mean)=',lnlikebf
+if rank==0:
+  print ' Best model (MCMC mean)=',lnlikebf
 
 # corner plot
 # VcR0,Vphsun,Vrsun,sigrR0,hsig,Xsq,R0=modelp
