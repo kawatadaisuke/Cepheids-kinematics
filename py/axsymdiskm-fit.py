@@ -260,12 +260,12 @@ simdata_targets=False
 mocktest=True
 # mocktest=False
 # add V and distance error to mock data. 
-# mocktest_adderr=True
-mocktest_adderr=False
+mocktest_adderr=True
+# mocktest_adderr=False
 
 # mc sampling of likelihood take into account the errors
-mcerrlike=True
-# mcerrlike=False
+# mcerrlike=True
+mcerrlike=False
 # number of MC sample for Vlon sample
 # nmc=1000
 nmc=100
@@ -276,6 +276,13 @@ withverr=True
 # withverr=False
 if mcerrlike==True:
   withverr=True
+# no distance modulus error
+no_moderr=True
+# no_moderr=False
+# fixed amount of verr
+fixed_verr=True
+# fixed_verr=False
+verrfix=5.0
 
 # hr and hsig fix or not?
 hrhsig_fix=True
@@ -304,6 +311,8 @@ if rank==0:
   print ' mocktest=',mocktest
   print ' mocktest_adderr=',mocktest_adderr
   print ' mcerrlike=',mcerrlike
+  print ' no_moderr=',no_moderr
+  print ' fixed_verr,verrfix=',fixed_verr,verrfix
 
 # fixed parameter
 hr=4.0
@@ -741,9 +750,17 @@ if withverr==False:
   errhrvs=np.zeros(nstars)
   errvlons=np.zeros(nstars)
 
+# reduce the error to verrfix km/s equivalent
+if fixed_verr==True:
+  dists=np.power(10.0,(mods+5.0)/5.0)*0.001
+  errpmras=verrfix/(pmvconst*dists)
+  errpmdecs=verrfix/(pmvconst*dists)
+  errhrvs=verrfix
+
 if mocktest_adderr==True:
   # add distance modulus error
-  mods=np.random.normal(mods,errmods,nstars)
+  if no_moderr==False:
+    mods=np.random.normal(mods,errmods,nstars)
   dists=np.power(10.0,(mods+5.0)/5.0)*0.001
   distxys0=np.copy(distxys)
   distxys=dists*np.cos(glatrads)
@@ -813,14 +830,14 @@ if mcerrlike==True:
   dectile=np.tile(decs,(nmc,1)).flatten()
   pmllbb_sam=bovy_coords.pmrapmdec_to_pmllpmbb(pmradec_mc[:,0,:].T.flatten() \
     ,pmradec_mc[:,1:].T.flatten(),ratile,dectile,degree=True,epoch=2000.0)
-  # reshape
+  # reshapea
   pmllbb_sam=pmllbb_sam.reshape((nmc,nstars,2))
 
   # distance MC sampling 
-  mod_sam=np.random.normal(mods,errmods,(nmc,nstars))
-  # test for no error
-  # mod_sam=np.tile(mods,(nmc,1))
-  # 
+  if no_moderr==False:
+    mod_sam=np.random.normal(mods,errmods,(nmc,nstars))
+  else:
+    mod_sam=np.tile(mods,(nmc,1))
   dist_sam=np.power(10.0,(mod_sam+5.0)/5.0)*0.001
   dist_err=np.std(dist_sam,axis=0)
   # pmlonv is x cos(b) and vlat sample
