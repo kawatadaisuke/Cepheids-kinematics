@@ -277,12 +277,16 @@ withverr=True
 if mcerrlike==True:
   withverr=True
 # no distance modulus error
-no_moderr=True
-# no_moderr=False
+# no_moderr=True
+no_moderr=False
 # fixed amount of verr
 fixed_verr=True
 # fixed_verr=False
-verrfix=1.0
+verrfix=5.0
+# fixed amount of distance modulus error
+fixed_moderr=True
+# fixed_moderr=False
+moderrfix=0.2
 
 # hr and hsig fix or not?
 hrhsig_fix=True
@@ -313,6 +317,7 @@ if rank==0:
   print ' mcerrlike=',mcerrlike
   print ' no_moderr=',no_moderr
   print ' fixed_verr,verrfix=',fixed_verr,verrfix
+  print ' fixed_moderr,moderrfix=',fixed_moderr,moderrfix
 
 # fixed parameter
 hr=4.0
@@ -750,13 +755,16 @@ if withverr==False:
   errhrvs=np.zeros(nstars)
   errvlons=np.zeros(nstars)
 
-# reduce the error to verrfix km/s equivalent
+# set the error to verrfix km/s equivalent
 if fixed_verr==True:
   dists=np.power(10.0,(mods+5.0)/5.0)*0.001
   errpmras=verrfix/(pmvconst*dists)
   errpmdecs=verrfix/(pmvconst*dists)
   errhrvs=verrfix
   pmradec_corrs=np.zeros_like(pmradec_corrs)
+# set fixed distance modulus error
+if fixed_moderr==True:
+  errmods=np.ones_like(errmods)*moderrfix
 
 if mocktest_adderr==True:
   # add distance modulus error
