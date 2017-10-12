@@ -264,8 +264,8 @@ mocktest_adderr=True
 # mocktest_adderr=False
 
 # mc sampling of likelihood take into account the errors
-# mcerrlike=True
-mcerrlike=False
+mcerrlike=True
+# mcerrlike=False
 # number of MC sample for Vlon sample
 # nmc=1000
 nmc=100
@@ -282,7 +282,7 @@ no_moderr=True
 # fixed amount of verr
 fixed_verr=True
 # fixed_verr=False
-verrfix=5.0
+verrfix=1.0
 
 # hr and hsig fix or not?
 hrhsig_fix=True
@@ -756,6 +756,7 @@ if fixed_verr==True:
   errpmras=verrfix/(pmvconst*dists)
   errpmdecs=verrfix/(pmvconst*dists)
   errhrvs=verrfix
+  pmradec_corrs=np.zeros_like(pmradec_corrs)
 
 if mocktest_adderr==True:
   # add distance modulus error
