@@ -3,7 +3,7 @@
 # axsymdiskm-fit.py
 #  fitting axisymmetric disk model to Cepheids kinematics data
 #
-#  10 Oct. 2017 - written D. Kawata
+#  12 Oct. 2017 - written D. Kawata
 #
 
 import pyfits
@@ -268,7 +268,7 @@ mcerrlike=True
 # mcerrlike=False
 # number of MC sample for Vlon sample
 # nmc=1000
-nmc=100
+nmc=50
 
 # only effective mcerrlike==False, take into account Verror only,
 # ignore distance error
@@ -280,13 +280,13 @@ if mcerrlike==True:
 # no_moderr=True
 no_moderr=False
 # fixed amount of verr
-fixed_verr=True
-# fixed_verr=False
-verrfix=5.0
+# fixed_verr=True
+fixed_verr=False
+verrfix=2.0
 # fixed amount of distance modulus error
-fixed_moderr=True
-# fixed_moderr=False
-moderrfix=0.2
+# fixed_moderr=True
+fixed_moderr=False
+moderrfix=0.1
 
 # hr and hsig fix or not?
 hrhsig_fix=True
@@ -514,12 +514,8 @@ nstars=len(hrvs)
 if rank==0:
   print ' number of selected stars=',nstars  
 
-nadds=0
-if mcerrlike==True and nadds>0:
-  if rank==0:
-    print 'Error mcerrlike cannot have additional particles. nadds=',nadds
-  sys.exit()
-
+np.random.seed(100)
+nadds=200
 if mocktest==True and nadds>0:
 # add or replace
   mock_add=False
@@ -674,6 +670,8 @@ xpos=-R0+np.cos(glonrads)*distxys
 ypos=np.sin(glonrads)*distxys
 rgals=np.sqrt(xpos**2+ypos**2)
 
+np.random.seed(10000)
+
 if mocktest==True:
 # assign the velocity using the true position
 # test using mock data
@@ -698,14 +696,42 @@ if mocktest==True:
 # set no Verr
 #   errvlons=np.zeros(nstars)
 #   errhrvs=np.zeros(nstars)
-  if rank==0:
-    f=open('axsymdiskm-fit_mock_input.asc','w')
-    i=0
-    for i in range(nstars):
-      print >>f,"%f %f %f %f %f %f %f %f %f %f %f %f" %(xpos[i],ypos[i] \
-       ,glonrads[i],rgals[i],vrads[i],vphs[i],angs[i],vxs[i],vys[i] \
-       ,hrvs[i],vlons[i],Vasyms[i])
-    f.close()
+#  if rank==0:
+# for test 
+  # filename='axsymdiskm-fit_mock_input'+str(rank)+'.asc'
+  # f=open(filename,'w')
+  # i=0
+  # for i in range(nstars):
+  #  print >>f,"%f %f %f %f %f %f %f %f %f %f %f %f" %(xpos[i],ypos[i] \
+  #   ,glonrads[i],rgals[i],vrads[i],vphs[i],angs[i],vxs[i],vys[i] \
+  #   ,hrvs[i],vlons[i],Vasyms[i])
+  # f.close()
+  if nadds>0:
+    # set mods
+    mods=5.0*np.log10(distxys*1000.0)-5.0
+    errmods=moderrfix
+    # set ras, decs, pmras, pmdecs
+    glondegs=glonrads*180.0/np.pi
+    glatdegs=glatrads*180.0/np.pi
+    Tradec=bovy_coords.lb_to_radec(glondegs,glatdegs,degree=True,epoch=2000.0)
+    ras=Tradec[:,0]
+    decs=Tradec[:,1]
+    # set vlats=0 
+    # vlats=np.zeros_like(vlons)
+    vlats=np.random.normal(0.0,5.0,nstars)
+    # km/s to mas/yr
+    pmlons=(vlons/distxys/pmvconst)*np.cos(glatrads)
+    pmlats=(vlats/distxys/pmvconst)
+    Tpmradec=bovy_coords.pmllpmbb_to_pmrapmdec(pmlons,pmlats \
+      ,glondegs,glatdegs,degree=True,epoch=2000.0)
+    pmras=Tpmradec[:,0]
+    pmdecs=Tpmradec[:,1]
+    # set error from verrfix
+    errpmras=verrfix/(pmvconst*distxys)
+    errpmdecs=verrfix/(pmvconst*distxys)
+    errhrvs=verrfix
+    pmradec_corrs=np.zeros_like(pmradec_corrs)
+    # pmradec_corrs=np.random.uniform(-1.0,1.0,nstars)
 
 # output hrv and vlon input data and expected values from the above parameters
 # line-of-sight velocity
@@ -755,21 +781,28 @@ if withverr==False:
   errhrvs=np.zeros(nstars)
   errvlons=np.zeros(nstars)
 
+np.random.seed(193)
+
 # set the error to verrfix km/s equivalent
 if fixed_verr==True:
   dists=np.power(10.0,(mods+5.0)/5.0)*0.001
   errpmras=verrfix/(pmvconst*dists)
   errpmdecs=verrfix/(pmvconst*dists)
   errhrvs=verrfix
-  pmradec_corrs=np.zeros_like(pmradec_corrs)
+  # pmradec_corrs=np.zeros_like(pmradec_corrs)
+  pmradec_corrs=np.random.uniform(-1.0,1.0,nstars)
 # set fixed distance modulus error
 if fixed_moderr==True:
   errmods=np.ones_like(errmods)*moderrfix
 
+np.random.seed(10)
+
 if mocktest_adderr==True:
   # add distance modulus error
   if no_moderr==False:
-    mods=np.random.normal(mods,errmods,nstars)
+    dmods=np.random.normal(0.0,errmods,nstars)
+    # dmods=np.clip(dmods,-0.1,0.1)
+    mods+=dmods
   dists=np.power(10.0,(mods+5.0)/5.0)*0.001
   distxys0=np.copy(distxys)
   distxys=dists*np.cos(glatrads)
@@ -790,17 +823,19 @@ if mocktest_adderr==True:
     # Cholesky decomp.
     L=np.linalg.cholesky(tcov)
     pmradecs[ii]+=np.dot(L,np.random.normal(size=(2)))
-  if rank==0:
-    f=open('mocktest_erroradded.asc','w')
-    for i in range(nstars):
-      print >>f,"%f %f %f %f %f %f %f %f %f %f %f %f" \
-        %(distxys0[i],distxys[i] \
-         ,hrvs0[i],hrvs[i],pmras[i],pmdecs[i],pmradecs[i,0],pmradecs[i,1] \
-         ,(distxys[i]-distxys0[i]) \
-         ,(hrvs[i]-hrvs0[i]) \
-         ,(pmras[i]-pmradecs[i,0]) \
-         ,(pmdecs[i]-pmradecs[i,1]))
-    f.close()
+  # if rank==0:
+  # for test
+  # filename='mocktest_erroradded'+str(rank)+'.asc'
+  # f=open(filename,'w')
+  # for i in range(nstars):
+  #  print >>f,"%f %f %f %f %f %f %f %f %f %f %f %f %f %f" \
+  #    %(distxys0[i],distxys[i] \
+  #     ,hrvs0[i],hrvs[i],pmras[i],pmdecs[i],pmradecs[i,0],pmradecs[i,1] \
+  #     ,(distxys[i]-distxys0[i]) \
+  #     ,(hrvs[i]-hrvs0[i]) \
+  #     ,(pmras[i]-pmradecs[i,0]) \
+  #      ,(pmdecs[i]-pmradecs[i,1]),ras[i],decs[i])
+  # f.close()
   pmras=pmradecs[:,0]
   pmdecs=pmradecs[:,1]
   pmllbbs=bovy_coords.pmrapmdec_to_pmllpmbb(pmras,pmdecs,ras,decs \
@@ -808,6 +843,8 @@ if mocktest_adderr==True:
   # pmlonv is x cos(b) and vlat sample
   vlons=pmvconst*pmllbbs[:,0]*dists
   vlats=pmvconst*pmllbbs[:,1]*dists
+
+np.random.seed(99998)
 
 # set input star data
 if mcerrlike==True:
@@ -843,10 +880,11 @@ if mcerrlike==True:
   pmllbb_sam=pmllbb_sam.reshape((nmc,nstars,2))
 
   # distance MC sampling 
+  mod_sam=np.tile(mods,(nmc,1))
   if no_moderr==False:
-    mod_sam=np.random.normal(mods,errmods,(nmc,nstars))
-  else:
-    mod_sam=np.tile(mods,(nmc,1))
+    dmod_sam=np.random.normal(0.0,errmods,nstars)
+    # dmod_sam=np.clip(dmod_sam,-0.1,0.1)
+    mod_sam+=dmod_sam
   dist_sam=np.power(10.0,(mod_sam+5.0)/5.0)*0.001
   dist_err=np.std(dist_sam,axis=0)
   # pmlonv is x cos(b) and vlat sample
@@ -862,6 +900,13 @@ if mcerrlike==True:
   # test for no error
   # hrv_sam=np.tile(hrvs,(nmc,1))
   hrv_err=np.std(hrv_sam,axis=0)
+  # for test
+  # filename='v_samp'+str(rank)+'.asc'
+  # f=open(filename,'w')
+  # for i in range(nmc):
+  #  for j in range(nstars):
+  #    print >>f,"%f %f"  %(vlon_sam[i,j],hrv_sam[i,j])
+  # f.close()
 
   # plot error
 #  gs1=gridspec.GridSpec(2,1)
@@ -888,6 +933,8 @@ else:
 
 # initial likelihood
 lnlikeini=lnprob(modelp,flags,fixvals,stardata)
+
+np.random.seed(1001)
 
 if rank==0:
   print ' Initial parameters=',modelp
