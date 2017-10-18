@@ -268,7 +268,7 @@ mcerrlike=True
 # mcerrlike=False
 # number of MC sample for Vlon sample
 # nmc=1000
-nmc=50
+nmc=100
 
 # only effective mcerrlike==False, take into account Verror only,
 # ignore distance error
@@ -287,6 +287,8 @@ verrfix=2.0
 # fixed_moderr=True
 fixed_moderr=False
 moderrfix=0.1
+# mocktest glat distribution (rad)
+glatsig=(3.0/180.0)*np.pi
 
 # hr and hsig fix or not?
 hrhsig_fix=True
@@ -323,8 +325,8 @@ if rank==0:
 hr=4.0
 if hrhsig_fix==True:
 # fix hsig and hr
-#  hsig=200.0
-  hsig=10.0
+  hsig=200.0
+#  hsig=10.0
   fixvals=np.zeros(3)
   fixvals[0]=hr
   fixvals[1]=hsig
@@ -555,7 +557,8 @@ if mocktest==True and nadds>0:
 #    distxyadds=np.random.uniform(dmin,dmax,nadds)
     glonadds=np.random.uniform(0.0,2.0*np.pi,nadds)
 # add the particles in the disk plane
-    glatadds=np.zeros(nadds)
+    # glatadds=np.zeros(nadds)
+    glatadds=np.random.normal(0.0,glatsig,nadds)
     hrvs=hrvadds
     vlons=vlonadds
     distxys=distxyadds
@@ -696,16 +699,16 @@ if mocktest==True:
 # set no Verr
 #   errvlons=np.zeros(nstars)
 #   errhrvs=np.zeros(nstars)
-#  if rank==0:
+  if rank==0:
 # for test 
-  # filename='axsymdiskm-fit_mock_input'+str(rank)+'.asc'
-  # f=open(filename,'w')
-  # i=0
-  # for i in range(nstars):
-  #  print >>f,"%f %f %f %f %f %f %f %f %f %f %f %f" %(xpos[i],ypos[i] \
-  #   ,glonrads[i],rgals[i],vrads[i],vphs[i],angs[i],vxs[i],vys[i] \
-  #   ,hrvs[i],vlons[i],Vasyms[i])
-  # f.close()
+    filename='axsymdiskm-fit_mock_input'+str(rank)+'.asc'
+    f=open(filename,'w')
+    i=0
+    for i in range(nstars):
+      print >>f,"%f %f %f %f %f %f %f %f %f %f %f %f %f" %(xpos[i],ypos[i] \
+       ,glonrads[i],glatrads[i],rgals[i],vrads[i],vphs[i],angs[i] \
+       ,vxs[i],vys[i],hrvs[i],vlons[i],Vasyms[i])
+    f.close()
   if nadds>0:
     # set mods
     mods=5.0*np.log10(distxys*1000.0)-5.0
@@ -934,7 +937,7 @@ else:
 # initial likelihood
 lnlikeini=lnprob(modelp,flags,fixvals,stardata)
 
-np.random.seed(1001)
+np.random.seed(1020)
 
 if rank==0:
   print ' Initial parameters=',modelp
