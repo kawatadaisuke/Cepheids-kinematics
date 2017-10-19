@@ -260,8 +260,8 @@ simdata_targets=False
 mocktest=True
 # mocktest=False
 # add V and distance error to mock data. 
-# mocktest_adderr=True
-mocktest_adderr=False
+mocktest_adderr=True
+# mocktest_adderr=False
 
 # mc sampling of likelihood take into account the errors
 mcerrlike=True
@@ -600,8 +600,7 @@ nparam=6
 modelpname=np.array(['$V_c(R_0)$','$V_{\phi,\odot}$' \
   ,'$V_{R,\odot}$','$\sigma_R(R_0)$','$X^2$','$R_0$'])
 # Bland-Hawthorn & Gerhard (2016), Vsun, V, Vrad
-# modelp0=np.array([237.2, 248.8, -10.0, 13.0, 1.0, 8.20])
-modelp0=np.array([237.2, 248.8, -10.0, 1.0, 1.0, 8.20])
+modelp0=np.array([237.2, 248.8, -10.0, 13.0, 1.0, 8.20])
 # mw39
 # modelp0=np.array([210.0, 220.0, -10.0, 30.0, 0.7, 8.0])
 # for mock
@@ -640,8 +639,7 @@ if mocktest==True:
   modelp0[0]=236.0
   modelp0[1]=247.968
   modelp0[2]=-9.0
-  # modelp0[3]=13.0
-  modelp0[3]=1.0
+  modelp0[3]=13.0
   modelp0[4]=1.0
   modelp0[5]=8.20
   if rank==0:
@@ -715,32 +713,25 @@ if mocktest==True:
        ,glonrads[i],glatrads[i],rgals[i],vrads[i],vphs[i],angs[i] \
        ,vxs[i],vys[i],hrvs[i],vlons[i],Vasyms[i])
     f.close()
+  # set ras, decs, pmras, pmdecs
+  glondegs=glonrads*180.0/np.pi
+  glatdegs=glatrads*180.0/np.pi
+  Tradec=bovy_coords.lb_to_radec(glondegs,glatdegs,degree=True,epoch=2000.0)
+  ras=Tradec[:,0]
+  decs=Tradec[:,1]
+  # set vlats=0 
+  # vlats=np.zeros_like(vlons)
+  vlats=np.random.normal(0.0,5.0,nstars)
+  # km/s to mas/yr
+  pmlons=(vlons/distxys/pmvconst)*np.cos(glatrads)
+  pmlats=(vlats/distxys/pmvconst)
+  Tpmradec=bovy_coords.pmllpmbb_to_pmrapmdec(pmlons,pmlats \
+    ,glondegs,glatdegs,degree=True,epoch=2000.0)
+  pmras=Tpmradec[:,0]
+  pmdecs=Tpmradec[:,1]
   if nadds>0:
     # set mods
     mods=5.0*np.log10(dists*1000.0)-5.0
-    errmods=moderrfix
-    # set ras, decs, pmras, pmdecs
-    glondegs=glonrads*180.0/np.pi
-    glatdegs=glatrads*180.0/np.pi
-    Tradec=bovy_coords.lb_to_radec(glondegs,glatdegs,degree=True,epoch=2000.0)
-    ras=Tradec[:,0]
-    decs=Tradec[:,1]
-    # set vlats=0 
-    # vlats=np.zeros_like(vlons)
-    vlats=np.random.normal(0.0,5.0,nstars)
-    # km/s to mas/yr
-    pmlons=(vlons/distxys/pmvconst)*np.cos(glatrads)
-    pmlats=(vlats/distxys/pmvconst)
-    Tpmradec=bovy_coords.pmllpmbb_to_pmrapmdec(pmlons,pmlats \
-      ,glondegs,glatdegs,degree=True,epoch=2000.0)
-    pmras=Tpmradec[:,0]
-    pmdecs=Tpmradec[:,1]
-    # set error from verrfix
-    errpmras=verrfix/(pmvconst*distxys)
-    errpmdecs=verrfix/(pmvconst*distxys)
-    errhrvs=verrfix
-    pmradec_corrs=np.zeros_like(pmradec_corrs)
-    # pmradec_corrs=np.random.uniform(-1.0,1.0,nstars)
 
 # output hrv and vlon input data and expected values from the above parameters
 # line-of-sight velocity
@@ -792,17 +783,17 @@ if withverr==False:
 
 np.random.seed(193)
 
+# set fixed distance modulus error
+if fixed_moderr==True or nadds>0:
+  errmods=np.ones_like(errmods)*moderrfix
 # set the error to verrfix km/s equivalent
-if fixed_verr==True:
+if fixed_verr==True or nadds>0:
   dists=np.power(10.0,(mods+5.0)/5.0)*0.001
   errpmras=verrfix/(pmvconst*dists)
   errpmdecs=verrfix/(pmvconst*dists)
   errhrvs=verrfix
   # pmradec_corrs=np.zeros_like(pmradec_corrs)
   pmradec_corrs=np.random.uniform(-1.0,1.0,nstars)
-# set fixed distance modulus error
-if fixed_moderr==True:
-  errmods=np.ones_like(errmods)*moderrfix
 
 np.random.seed(10)
 
@@ -972,8 +963,8 @@ if rank==0:
   print ' Initial ln likelihood=',lnlikeini
 
 # define number of dimension for parameters
-ndim,nwalkers=nparam,100
-# ndim,nwalkers=nparam,50
+# ndim,nwalkers=nparam,100
+ndim,nwalkers=nparam,50
 # initialise walker's position
 # pos=[modelp+1.0e-3*np.random.randn(ndim) for i in range(nwalkers)]
 # pos=[modelp+0.2*np.fabs(modelp)*np.random.randn(ndim) for i in range(nwalkers)]
