@@ -3,7 +3,7 @@
 # axsymdiskm-fit.py
 #  fitting axisymmetric disk model to Cepheids kinematics data
 #
-#  12 Oct. 2017 - written D. Kawata
+#  19 Oct. 2017 - written D. Kawata
 #
 
 import pyfits
@@ -264,8 +264,8 @@ mocktest_adderr=True
 # mocktest_adderr=False
 
 # mc sampling of likelihood take into account the errors
-mcerrlike=True
-# mcerrlike=False
+# mcerrlike=True
+mcerrlike=False
 # number of MC sample for Vlon sample
 nmc=1000
 # nmc=100
@@ -519,14 +519,14 @@ if rank==0:
   print ' number of selected stars=',nstars  
 
 np.random.seed(100)
-nadds=0
+nadds=200
 if mocktest==True and nadds>0:
 # add or replace
   mock_add=False
   if mock_add==True:
 # add more stars
     dmin=0.0
-    dmax=4.0
+    dmax=3.0
     hrvadds=np.zeros(nadds)
     vlonadds=np.zeros(nadds)
     distxyadds=np.random.uniform(dmin,dmax,nadds)
@@ -551,7 +551,7 @@ if mocktest==True and nadds>0:
   else:
 # replace the particles.
     dmin=0.0
-    dmax=4.0
+    dmax=3.0
     hrvadds=np.zeros(nadds)
     vlonadds=np.zeros(nadds)
 # ramdomly homogeneous distribution
@@ -568,6 +568,8 @@ if mocktest==True and nadds>0:
     distxys=distxyadds
     glonrads=glonadds
     glatrads=glatadds
+    ras=np.zeros(nadds)
+    decs=np.zeros(nadds)
     errhrvs=np.zeros(nadds)
     errvlons=np.zeros(nadds)
     pmras=np.zeros(nadds)
@@ -575,12 +577,15 @@ if mocktest==True and nadds>0:
     pmdecs=np.zeros(nadds)
     errpmdecs=np.zeros(nadds)
     pmradec_corrs=np.ones(nadds)
+    mods=np.zeros(nadds)
+    errmods=np.zeros(nadds)
+    logps=np.zeros(nadds)
     nstars=nadds
     if rank==0:
       print ' number of stars after replacing =',nstars  
 
 # output selected stars
-if nadds==0 and rank==0:
+if rank==0 and nadds==0:
   f=open('axsymdiskm-fit_sels.asc','w')
   i=0
   print >>f,"# nstar= %10d" % (nstars)
