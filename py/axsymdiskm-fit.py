@@ -260,15 +260,15 @@ simdata_targets=False
 mocktest=True
 # mocktest=False
 # add V and distance error to mock data. 
-mocktest_adderr=True
-# mocktest_adderr=False
+# mocktest_adderr=True
+mocktest_adderr=False
 
 # mc sampling of likelihood take into account the errors
 mcerrlike=True
 # mcerrlike=False
 # number of MC sample for Vlon sample
-# nmc=1000
-nmc=100
+nmc=1000
+# nmc=100
 
 # only effective mcerrlike==False, take into account Verror only,
 # ignore distance error
@@ -363,6 +363,7 @@ if simdata==True:
   sindx=np.where(zsim<zmaxlim)
   # set other values
   distxys=np.sqrt(xsim[sindx]**2+ysim[sindx]**2)
+  dists=np.sqrt(xsim[sindx]**2+ysim[sindx]**2+zsim[sindx]**2)
   if rank==0:
     print ' N selected particles=',len(xsim[sindx])
   glonrads=glonsim[sindx]*np.pi/180.0
@@ -411,7 +412,7 @@ elif simdata_targets==True:
   vxps=rdata[:,27]
   vyps=rdata[:,28]
   vzps=rdata[:,29]
-  d3dps=rdata[:,30]
+  dists=rdata[:,30]
 # get RA, DEC coordinates  
   Tradec=bovy_coords.lb_to_radec(glondegs,glatdegs,degree=True,epoch=2000.0)
   ras=Tradec[:,0]
@@ -491,6 +492,7 @@ else:
 
   hrvs=hrvv[sindx]
   vlons=vlonv[sindx]
+  dists=distv[sindx]
   distxys=distxyv[sindx]
   glonrads=glonradv[sindx]
   glatrads=glatradv[sindx]
@@ -517,7 +519,7 @@ if rank==0:
   print ' number of selected stars=',nstars  
 
 np.random.seed(100)
-nadds=200
+nadds=0
 if mocktest==True and nadds>0:
 # add or replace
   mock_add=False
@@ -553,14 +555,16 @@ if mocktest==True and nadds>0:
     hrvadds=np.zeros(nadds)
     vlonadds=np.zeros(nadds)
 # ramdomly homogeneous distribution
-    distxyadds=np.sqrt(np.random.uniform(0.0,1.0,nadds))*dmax
+    distadds=np.sqrt(np.random.uniform(0.0,1.0,nadds))*dmax
 #    distxyadds=np.random.uniform(dmin,dmax,nadds)
     glonadds=np.random.uniform(0.0,2.0*np.pi,nadds)
 # add the particles in the disk plane
     # glatadds=np.zeros(nadds)
     glatadds=np.random.normal(0.0,glatsig,nadds)
+    distxyadds=distadds*np.cos(glatadds)
     hrvs=hrvadds
     vlons=vlonadds
+    dists=distadds
     distxys=distxyadds
     glonrads=glonadds
     glatrads=glatadds
@@ -596,7 +600,8 @@ nparam=6
 modelpname=np.array(['$V_c(R_0)$','$V_{\phi,\odot}$' \
   ,'$V_{R,\odot}$','$\sigma_R(R_0)$','$X^2$','$R_0$'])
 # Bland-Hawthorn & Gerhard (2016), Vsun, V, Vrad
-modelp0=np.array([237.2, 248.8, -10.0, 13.0, 1.0, 8.20])
+# modelp0=np.array([237.2, 248.8, -10.0, 13.0, 1.0, 8.20])
+modelp0=np.array([237.2, 248.8, -10.0, 1.0, 1.0, 8.20])
 # mw39
 # modelp0=np.array([210.0, 220.0, -10.0, 30.0, 0.7, 8.0])
 # for mock
@@ -635,7 +640,8 @@ if mocktest==True:
   modelp0[0]=236.0
   modelp0[1]=247.968
   modelp0[2]=-9.0
-  modelp0[3]=13.0
+  # modelp0[3]=13.0
+  modelp0[3]=1.0
   modelp0[4]=1.0
   modelp0[5]=8.20
   if rank==0:
@@ -711,7 +717,7 @@ if mocktest==True:
     f.close()
   if nadds>0:
     # set mods
-    mods=5.0*np.log10(distxys*1000.0)-5.0
+    mods=5.0*np.log10(dists*1000.0)-5.0
     errmods=moderrfix
     # set ras, decs, pmras, pmdecs
     glondegs=glonrads*180.0/np.pi
@@ -847,6 +853,19 @@ if mocktest_adderr==True:
   vlons=pmvconst*pmllbbs[:,0]*dists
   vlats=pmvconst*pmllbbs[:,1]*dists
 
+xpos=-R0+np.cos(glonrads)*distxys
+ypos=np.sin(glonrads)*distxys
+rgals=np.sqrt(xpos**2+ypos**2)
+
+if rank==0:
+  filename='input_data'+str(rank)+'.asc'
+  f=open(filename,'w')
+  for i in range(nstars):
+    print >>f,"%f %f %f %f %f %f %f %f %f %f" \
+      %(xpos[i],ypos[i],glonrads[i],glatrads[i],dists[i],distxys[i] \
+        ,vlons[i],hrvs[i],pmras[i],pmdecs[i])
+  f.close()
+
 np.random.seed(99998)
 
 # set input star data
@@ -884,10 +903,17 @@ if mcerrlike==True:
 
   # distance MC sampling 
   mod_sam=np.tile(mods,(nmc,1))
+  errmod_sam=np.tile(errmods,(nmc,1))
   if no_moderr==False:
-    dmod_sam=np.random.normal(0.0,errmods,nstars)
-    # dmod_sam=np.clip(dmod_sam,-0.1,0.1)
+    dmod_sam=np.random.normal(0.0,errmod_sam,(nmc,nstars))
     mod_sam+=dmod_sam
+  # test output
+  # if rank==0:
+  #  filename='dist_mcran'+str(rank)+'.asc'
+  #  f=open(filename,'w')
+  #  for j in range(nstars):
+  #    print >>f,"%f %f" %(errmods[j],np.std(dmod_sam[:,j]))
+  #  f.close()
   dist_sam=np.power(10.0,(mod_sam+5.0)/5.0)*0.001
   dist_err=np.std(dist_sam,axis=0)
   # pmlonv is x cos(b) and vlat sample
@@ -904,14 +930,16 @@ if mcerrlike==True:
   # hrv_sam=np.tile(hrvs,(nmc,1))
   hrv_err=np.std(hrv_sam,axis=0)
   # for test
-  # filename='v_samp'+str(rank)+'.asc'
-  # f=open(filename,'w')
-  # for i in range(nmc):
-  #  for j in range(nstars):
-  #    print >>f,"%f %f"  %(vlon_sam[i,j],hrv_sam[i,j])
-  # f.close()
+  if rank==0:
+    filename='v_samp'+str(rank)+'.asc'
+    f=open(filename,'w')
+    for i in range(nmc):
+      for j in range(nstars):
+        print >>f,"%f %f %f %f %f" %(glonrads[j],glatrads[j] \
+          ,dist_sam[i,j],vlon_sam[i,j],hrv_sam[i,j])
+    f.close()
 
-  # plot error
+# plot error
 #  gs1=gridspec.GridSpec(2,1)
 #  gs1.update(left=0.15,right=0.9,bottom=0.1,top=0.95,hspace=0,wspace=0)
   # Vlon
@@ -944,8 +972,8 @@ if rank==0:
   print ' Initial ln likelihood=',lnlikeini
 
 # define number of dimension for parameters
-# ndim,nwalkers=nparam,100
-ndim,nwalkers=nparam,50
+ndim,nwalkers=nparam,100
+# ndim,nwalkers=nparam,50
 # initialise walker's position
 # pos=[modelp+1.0e-3*np.random.randn(ndim) for i in range(nwalkers)]
 # pos=[modelp+0.2*np.fabs(modelp)*np.random.randn(ndim) for i in range(nwalkers)]
