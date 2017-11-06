@@ -217,6 +217,9 @@ def lnprior(modelp,flags,fixvals):
 # Prior for R0 from de Gris & Bono (2016)
 #  R0prior=8.3
 #  R0prior_sig=0.45
+# mw39
+#  R0prior=8.0
+#  R0prior_sig=0.1  
 
   lnp=-0.5*(R0-R0prior)**2/(R0prior_sig**2)-np.log(np.sqrt(2.0*np.pi)*R0prior_sig)
 
@@ -228,6 +231,9 @@ def lnprior(modelp,flags,fixvals):
 # Bland-Hawthorn & Gerhard (2016)
   omgsun_prior=30.24
   omgsun_prior_sig=0.12
+# mw39
+#  omgsun_prior=220.0/8.0
+#  omgsun_prior_sig=0.12
 
   omgsun=Vphsun/R0
   lnp=lnp-0.5*(omgsun-omgsun_prior)**2/(omgsun_prior_sig**2)-np.log(np.sqrt(2.0*np.pi)*omgsun_prior_sig)
@@ -418,8 +424,8 @@ elif simdata_targets==True:
   ras=Tradec[:,0]
   decs=Tradec[:,1]
 # km/s to mas/yr
-  pmlons=(vlons/d3dps/pmvconst)*np.cos(glatrads)
-  pmlats=(vlats/d3dps/pmvconst)
+  pmlons=(vlons/dists/pmvconst)*np.cos(glatrads)
+  pmlats=(vlats/dists/pmvconst)
   Tpmradec=bovy_coords.pmllpmbb_to_pmrapmdec(pmlons,pmlats,glondegs,glatdegs,degree=True,epoch=2000.0)
   pmras=Tpmradec[:,0]
   pmdecs=Tpmradec[:,1]
@@ -519,7 +525,7 @@ if rank==0:
   print ' number of selected stars=',nstars  
 
 np.random.seed(100)
-nadds=200
+nadds=0
 if mocktest==True and nadds>0:
 # add or replace
   mock_add=False
