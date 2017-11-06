@@ -3,7 +3,7 @@
 # axsymdiskm-fit.py
 #  fitting axisymmetric disk model to Cepheids kinematics data
 #
-#  19 Oct. 2017 - written D. Kawata
+#  6 Nov. 2017 - written D. Kawata
 #
 
 import pyfits
@@ -331,8 +331,8 @@ if rank==0:
 hr=4.0
 if hrhsig_fix==True:
 # fix hsig and hr
-  hsig=200.0
-#  hsig=10.0
+#  hsig=200.0
+  hsig=10.0
   fixvals=np.zeros(3)
   fixvals[0]=hr
   fixvals[1]=hsig
