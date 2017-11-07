@@ -260,11 +260,11 @@ def lnprob(modelp,flags,fixvals,stardata):
 # simdata=True
 simdata=False
 # use simulation data selected from the observed targets
-# simdata_targets=True
-simdata_targets=False
+simdata_targets=True
+# simdata_targets=False
 # mock data test using the location of input data
-mocktest=True
-# mocktest=False
+# mocktest=True
+mocktest=False
 # add V and distance error to mock data. 
 mocktest_adderr=True
 # mocktest_adderr=False
@@ -366,7 +366,7 @@ if simdata==True:
 #  agesim=rdata[:,11]
   # selection
   zmaxlim=0.1
-  sindx=np.where(zsim<zmaxlim)
+  sindx=np.where(np.abs(zsim)<zmaxlim)
   # set other values
   distxys=np.sqrt(xsim[sindx]**2+ysim[sindx]**2)
   dists=np.sqrt(xsim[sindx]**2+ysim[sindx]**2+zsim[sindx]**2)
@@ -397,28 +397,32 @@ elif simdata_targets==True:
   if rank==0:
     print 'read file ',ifile
 #  print ' 1st line=',rdata[0,:]
-  glondegs=rdata[:,0]
-  glonrads=rdata[:,0]*np.pi/180.0
+  # selection with distance
+  dmaxlim=100.0
+  sindx=np.where(rdata[:,30]<dmaxlim)
   if rank==0:
-    print ' N selected particles=',len(glonrads)
-  glatdegs=rdata[:,1]
-  glatrads=rdata[:,1]*np.pi/180.0
-  distxys=rdata[:,2]
-  hrvs=rdata[:,3]
-  vlons=rdata[:,4]
-  errhrvs=rdata[:,5]
-  errvlons=rdata[:,6]
-  mods=rdata[:,7]
-  errmods=rdata[:,8]
-  errpmras=rdata[:,22]
-  errpmdecs=rdata[:,23]
-  pmradec_corrs=rdata[:,24]
-  logps=rdata[:,25]
-  vlats=rdata[:,26]
-  vxps=rdata[:,27]
-  vyps=rdata[:,28]
-  vzps=rdata[:,29]
-  dists=rdata[:,30]
+    print ' N selected particles =',len(rdata[:,30][sindx])
+    print ' within dmaxlim =',dmaxlim
+  glondegs=rdata[:,0][sindx]
+  glonrads=rdata[:,0][sindx]*np.pi/180.0
+  glatdegs=rdata[:,1][sindx]
+  glatrads=rdata[:,1][sindx]*np.pi/180.0
+  distxys=rdata[:,2][sindx]
+  hrvs=rdata[:,3][sindx]
+  vlons=rdata[:,4][sindx]
+  errhrvs=rdata[:,5][sindx]
+  errvlons=rdata[:,6][sindx]
+  mods=rdata[:,7][sindx]
+  errmods=rdata[:,8][sindx]
+  errpmras=rdata[:,22][sindx]
+  errpmdecs=rdata[:,23][sindx]
+  pmradec_corrs=rdata[:,24][sindx]
+  logps=rdata[:,25][sindx]
+  vlats=rdata[:,26][sindx]
+  vxps=rdata[:,27][sindx]
+  vyps=rdata[:,28][sindx]
+  vzps=rdata[:,29][sindx]
+  dists=rdata[:,30][sindx]
 # get RA, DEC coordinates  
   Tradec=bovy_coords.lb_to_radec(glondegs,glatdegs,degree=True,epoch=2000.0)
   ras=Tradec[:,0]
