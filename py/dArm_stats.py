@@ -44,7 +44,7 @@ def distarm(armp,galp,xpos,ypos):
   darm=np.zeros(len(xpos))
   angmin=np.zeros(len(xpos))
 
-  for i in range(len(xpos)):  
+  for i in range(len(xpos)):
     res=minimize_scalar(funcdarm2,args=(armp,xpos[i],ypos[i]),bounds=(0.0,1.5*np.pi),method='bounded')
     if res.success==False:
       print ' no minimize result at i,x,y=',i,xpos[i],ypos[i]
@@ -88,6 +88,8 @@ dist=np.power(10.0,(star['Mod']+5.0)/5.0)*0.001
 sindx=np.where((verr<Verrlim) & \
                (np.abs(zwerr)<zmaxlim) & \
                (dist<distmaxlim))
+
+
 # name
 namev=star['Name'][sindx]
 # number of data points
@@ -169,7 +171,7 @@ angrange=angst,angen
 armp=angref,rref,tanpa
 galp=rsun
 
-# computer distances from the arm
+# compute distances from the arm
 darmv=np.zeros_like(xposv)
 angarmv=np.zeros_like(xposv)
 darmv,angarmv=distarm(armp,galp,xposv,yposv)
@@ -261,7 +263,7 @@ print ' Leading vertex deviation=',(180.0/np.pi)*0.5*np.arctan(2.0*vcovl[0,1] \
 v2dt=np.vstack((uradt,vrott))
 vcovt=np.cov(v2dt)
 # print ' Trailing cov=',vcovt
-print ' Teading vertex deviation=',(180.0/np.pi)*0.5*np.arctan(2.0*vcovt[0,1] \
+print ' Trailing vertex deviation=',(180.0/np.pi)*0.5*np.arctan(2.0*vcovt[0,1] \
  /(vcovt[0,0]-vcovt[1,1]))
 
 # bottom panel
@@ -307,6 +309,278 @@ plt.yticks(fontsize=12)
 # plot
 plt.tight_layout()
 plt.show()
+
+##### MC error sampling
+print '##### MC error sampling, velocity and distance'
+# velocity and distance error only
+nmc=100
+# sample from proper-motion covariance matrix
+pmradec_mc=np.empty((nstarv,2,nmc))
+pmradec_mc[:,0,:]=np.atleast_2d(pmrav).T
+pmradec_mc[:,1,:]=np.atleast_2d(pmdecv).T
+for ii in range(nstarv):
+  # constract covariance matrix
+  tcov=np.zeros((2,2))
+  tcov[0,0]=errpmrav[ii]**2.0/2.0  # /2 because of symmetrization below
+  tcov[1,1]=errpmdecv[ii]**2.0/2.0
+  tcov[0,1]=pmradec_corrv[ii]*errpmrav[ii]*errpmdecv[ii]
+  # symmetrise
+  tcov=(tcov+tcov.T)
+  # Cholesky decomp.
+  L=np.linalg.cholesky(tcov)
+  pmradec_mc[ii]+=np.dot(L,np.random.normal(size=(2,nmc)))
+
+# distribution of velocity and distance. 
+# -> pml pmb
+ratile=np.tile(rav,(nmc,1)).flatten()
+dectile=np.tile(decv,(nmc,1)).flatten()
+pmllbb_sam=bovy_coords.pmrapmdec_to_pmllpmbb(pmradec_mc[:,0,:].T.flatten() \
+  ,pmradec_mc[:,1:].T.flatten(),ratile,dectile,degree=True,epoch=2000.0)
+# reshape
+pmllbb_sam=pmllbb_sam.reshape((nmc,nstarv,2))
+# distance MC sampling 
+modv_sam=np.random.normal(modv,errmodv,(nmc,nstarv))
+# 
+distv_sam=np.power(10.0,(modv_sam+5.0)/5.0)*0.001
+# radial velocity MC sampling
+hrvv_sam=np.random.normal(hrvv,errhrvv,(nmc,nstarv))
+# -> vx,vy,vz
+vxvyvz_sam=bovy_coords.vrpmllpmbb_to_vxvyvz(hrvv_sam.flatten() \
+ ,pmllbb_sam[:,:,0].flatten(),pmllbb_sam[:,:,1].flatten() \
+ ,np.tile(glonv,(nmc,1)).flatten(),np.tile(glatv,(nmc,1)).flatten() \
+ ,distv_sam.flatten(),degree=True)
+# reshape
+vxvyvz_sam=vxvyvz_sam.reshape((nmc,nstarv,3))
+vxv_sam=vxvyvz_sam[:,:,0]+usun
+vyv_sam=vxvyvz_sam[:,:,1]+vsun
+vzv_sam=vxvyvz_sam[:,:,2]+zsun
+# x, y position
+glonradv_sam=np.tile(glonradv,(nmc,1))
+glatradv_sam=np.tile(glatradv,(nmc,1))
+xposv_sam=-rsun+np.cos(glonradv_sam)*distv_sam*np.cos(glatradv_sam)
+yposv_sam=np.sin(glonradv_sam)*distv_sam*np.cos(glatradv_sam)
+zposv_sam=distv_sam*np.sin(glatradv_sam)
+# rgal with Reid et al. value
+rgalv_sam=np.sqrt(xposv_sam**2+yposv_sam**2)
+# Vcirc at the radius of the stars, including dVc/dR
+vcircrv_sam=vcirc+dvcdr*(rgalv_sam-rsun)
+vyv_sam=vyv_sam+vcircrv_sam
+# original velocity
+vxv0_sam=vxv_sam
+vyv0_sam=vyv_sam
+vzv0_sam=vzv_sam
+# Galactic radius and velocities
+vradv0_sam=(vxv0_sam*xposv_sam+vyv0_sam*yposv_sam)/rgalv_sam
+vrotv0_sam=(vxv0_sam*yposv_sam-vyv0_sam*xposv_sam)/rgalv_sam
+# then subtract circular velocity contribution
+vxv_sam=vxv_sam-vcircrv_sam*yposv_sam/rgalv_sam
+vyv_sam=vyv_sam+vcircrv_sam*xposv_sam/rgalv_sam
+vradv_sam=(vxv_sam*xposv_sam+vyv_sam*yposv_sam)/rgalv_sam
+vrotv_sam=(vxv_sam*yposv_sam-vyv_sam*xposv_sam)/rgalv_sam
+
+f=open('mcsample.asc','w')
+for j in range(nstarv):
+  for i in range(nmc):
+    print >>f,"%f %f %f %f %f %f %f %f" %( \
+     xposv_sam[i,j],yposv_sam[i,j],xposv[j],yposv[j] \
+    ,vradv_sam[i,j],vrotv_sam[i,j],vradv[j],vrotv[j])
+f.close()
+
+# compute distances from the arm
+darmv_sam=np.zeros_like(xposv_sam.flatten())
+angarmv_sam=np.zeros_like(xposv_sam.flatten())
+darmv_sam,angarmv_sam=distarm(armp,galp,xposv_sam.flatten(),yposv_sam.flatten())
+# reshape
+darmv_sam=darmv_sam.reshape((nmc,nstarv))
+angarmv_sam=angarmv_sam.reshape((nmc,nstarv))
+
+# check the position relative to the arm
+rspv_sam=np.exp(tanpa*(angarmv_sam-angref))*rref
+xarmp_sam=rspv_sam*np.cos(angarmv_sam)
+yarmp_sam=rspv_sam*np.sin(angarmv_sam)
+darmsunv_sam=np.sqrt((xarmp_sam+rsun)**2+yarmp_sam**2)
+distxyv_sam=distv_sam*np.cos(glatradv_sam)
+for j in range(nstarv):
+  for i in range(nmc):
+    if distxyv_sam[i,j]>darmsunv_sam[i,j] and xposv_sam[i,j]<-rsun:
+      darmv_sam[i,j]=-darmv_sam[i,j]
+
+# mean value
+darmv_mean=np.mean(darmv_sam,axis=0).reshape(nstarv)
+angarmv_mean=np.mean(angarmv_sam,axis=0).reshape(nstarv)
+vradv_mean=np.mean(vradv_sam,axis=0).reshape(nstarv)
+vrotv_mean=np.mean(vrotv_sam,axis=0).reshape(nstarv)
+
+# sampling the stars around the arm
+nrows=3
+ncols=3
+warm=1.5
+sindxarm=np.where((darmv_mean>-warm) & (darmv_mean<warm))
+nswarm=np.size(sindxarm)
+print ' sindxarm=',nswarm
+uradwarm_sam=-vradv_sam[:,sindxarm].reshape(nmc,nswarm)
+vrotwarm_sam=vrotv_sam[:,sindxarm].reshape(nmc,nswarm)
+darmwarm_sam=darmv_sam[:,sindxarm].reshape(nmc,nswarm)
+
+# mean value
+
+print ' number of stars selected from d_mean<',warm,'=',nswarm
+uradwarm_mean=np.mean(uradwarm_sam,axis=0).reshape(nswarm)
+vrotwarm_mean=np.mean(vrotwarm_sam,axis=0).reshape(nswarm)
+darmwarm_mean=np.mean(darmwarm_sam,axis=0).reshape(nswarm)
+uradwarm_std=np.std(uradwarm_sam,axis=0).reshape(nswarm)
+vrotwarm_std=np.std(vrotwarm_sam,axis=0).reshape(nswarm)
+darmwarm_std=np.std(darmwarm_sam,axis=0).reshape(nswarm)
+
+# computing correlation coefficients
+ucorrcoef=np.zeros(nmc)
+vcorrcoef=np.zeros(nmc)
+for i in range(nmc):
+  ucorrcoef[i]=np.corrcoef(darmwarm_sam[i,:],uradwarm_sam[i,:])[0,1]
+  vcorrcoef[i]=np.corrcoef(darmwarm_sam[i,:],vrotwarm_sam[i,:])[0,1]
+
+print ' U corrcoef med,mean,sig=',np.median(ucorrcoef) \
+  ,np.mean(ucorrcoef),np.std(ucorrcoef)
+print ' V corrcoef med,mean,sig=',np.median(vcorrcoef) \
+ ,np.mean(vcorrcoef),np.std(vcorrcoef)
+
+# plot d vs. U
+plt.subplot(nrows,ncols,1)
+# plt.scatter(darmwarm_mean,uradwarm_mean,s=30)
+plt.errorbar(darmwarm_mean,uradwarm_mean,xerr=darmwarm_std,yerr=uradwarm_std,fmt='.')
+plt.xlabel(r"d (kpc)",fontsize=12,fontname="serif")
+plt.ylabel(r"U (km/s)",fontsize=12,fontname="serif")
+plt.axis([-warm,warm,-80.0,80.0],'scaled')
+plt.xticks(fontsize=12)
+plt.yticks(fontsize=12)
+# plot d vs. V
+# plt.subplot(gs1[1])
+plt.subplot(nrows,ncols,2)
+# plt.scatter(darmwarm_mean,vrotwarm_mean,s=30)
+plt.errorbar(darmwarm_mean,vrotwarm_mean,xerr=darmwarm_std,yerr=vrotwarm_std,fmt='.',)
+plt.xlabel(r"d (kpc)",fontsize=12,fontname="serif")
+plt.ylabel(r"V (km/s)",fontsize=12,fontname="serif")
+plt.axis([-warm,warm,-80.0,80.0],'scaled')
+plt.xticks(fontsize=12)
+plt.yticks(fontsize=12)
+
+# leading and training
+sindxlead=np.where((darmv_mean>dleadmin) & (darmv_mean<dleadmax))
+sindxtrail=np.where((darmv_mean>dtrailmin) & (darmv_mean<dtrailmax))
+
+print ' Leading d range min,max=',dleadmin,dleadmax
+print ' Trailing d range min,max=',dleadmin,dleadmax
+nlead=np.size(sindxlead)
+ntrail=np.size(sindxtrail)
+print ' numper of stars leading=',nlead
+print ' numper of stars trailing=',ntrail
+
+# U is positive toward centre
+uradl_sam=-vradv_sam[:,sindxlead].reshape(nmc,nlead)
+uradt_sam=-vradv_sam[:,sindxtrail].reshape(nmc,ntrail)
+# V
+vrotl_sam=vrotv_sam[:,sindxlead].reshape(nmc,nlead)
+vrott_sam=vrotv_sam[:,sindxtrail].reshape(nmc,ntrail)
+
+# computing mean and median U, V
+uradl_mean_sam=np.mean(uradl_sam,axis=1)
+uradt_mean_sam=np.mean(uradt_sam,axis=1)
+vrotl_mean_sam=np.mean(vrotl_sam,axis=1)
+vrott_mean_sam=np.mean(vrott_sam,axis=1)
+uradl_median_sam=np.median(uradl_sam,axis=1)
+uradt_median_sam=np.median(uradt_sam,axis=1)
+vrotl_median_sam=np.median(vrotl_sam,axis=1)
+vrott_median_sam=np.median(vrott_sam,axis=1)
+
+# taking statistical mean and dispersion
+print '### Statistical mean and dispersion for Mean'
+print ' Leading U mean,sig=',np.mean(uradl_mean_sam),np.std(uradl_mean_sam)
+print ' Trailing U mean,mean,sig=',np.mean(uradt_mean_sam),np.std(uradt_mean_sam)
+print ' Leading V mean,sig=',np.mean(vrotl_mean_sam),np.std(vrotl_mean_sam)
+print ' Trailing V mean,sig=',np.mean(vrott_mean_sam),np.std(vrott_mean_sam)
+print '### Statistical mean and dispersion for Median'
+print ' Leading U mean,sig=',np.mean(uradl_median_sam),np.std(uradl_median_sam)
+print ' Trailing U mean,mean,sig=',np.mean(uradt_median_sam),np.std(uradt_median_sam)
+print ' Leading V mean,sig=',np.mean(vrotl_median_sam),np.std(vrotl_median_sam)
+print ' Trailing V mean,sig=',np.mean(vrott_median_sam),np.std(vrott_median_sam)
+
+# vertex deviation
+# covariance of leading part
+# leading part
+lvl_sam=np.zeros(nmc)
+for i in range(nmc):
+  v2dl=np.vstack((uradl_sam[i,:],vrotl_sam[i,:]))
+  vcovl=np.cov(v2dl)
+  # vertex deviation
+  lvl_sam[i]=(180.0/np.pi)*0.5*np.arctan(2.0*vcovl[0,1] \
+    /(vcovl[0,0]-vcovl[1,1]))
+
+print '### Vertex deviation' 
+print ' Leading vertex deviation mean,sig=',np.mean(lvl_sam),np.std(lvl_sam)
+
+# trailing part
+lvt_sam=np.zeros(nmc)
+for i in range(nmc):
+  v2dt=np.vstack((uradt_sam[i,:],vrott_sam[i,:]))
+  vcovt=np.cov(v2dt)
+  lvt_sam[i]=(180.0/np.pi)*0.5*np.arctan(2.0*vcovt[0,1] \
+   /(vcovt[0,0]-vcovt[1,1]))
+
+print ' Trailing vertex deviation mean,sig=',np.mean(lvt_sam),np.std(lvt_sam)
+
+# bottom panel
+# U hist
+# gs2=gridspec.GridSpec(1,3)
+# gs2.update(left=0.1,right=0.975,bottom=0.1,top=0.4)
+# plt.subplot(gs2[0])
+plt.subplot(nrows,ncols,4)
+plt.hist(uradt_sam.flatten(),bins=40,range=(-60,80) \
+  ,normed=True,histtype='step',color='b',linewidth=2.0)
+plt.hist(uradl_sam.flatten(),bins=40,range=(-60,80) \
+  ,normed=True,histtype='step',color='r',linewidth=2.0)
+plt.xlabel(r"U (km/s)",fontsize=12,fontname="serif")
+plt.ylabel(r"dN",fontsize=12,fontname="serif")
+# V hist
+# plt.subplot(gs2[1])
+plt.subplot(nrows,ncols,5)
+plt.hist(vrott_sam.flatten(),bins=40,range=(-60,80) \
+  ,normed=True,histtype='step',color='b',linewidth=2.0)
+plt.hist(vrotl_sam.flatten(),bins=20,range=(-60,80) \
+  ,normed=True,histtype='step',color='r',linewidth=2.0)
+plt.xlabel(r"U (km/s)",fontsize=12,fontname="serif")
+plt.ylabel(r"dN",fontsize=12,fontname="serif")
+# U-V map
+# leading
+# plt.subplot(gs1[2])
+plt.subplot(nrows,ncols,3)
+# plt.scatter(uradl,vrotl,s=30)
+
+plt.errorbar(np.mean(uradl_sam,axis=0).reshape(nlead) \
+  ,np.mean(vrotl_sam,axis=0).reshape(nlead) \
+  ,xerr=np.std(uradl_sam,axis=0).reshape(nlead) \
+  ,yerr=np.std(vrotl_sam,axis=0).reshape(nlead),fmt='.')
+plt.xlabel(r"U (km/s)",fontsize=12,fontname="serif")
+plt.ylabel(r"V (km/s)",fontsize=12,fontname="serif")
+plt.axis([-60.0,60.0,-60.0,60.0],'scaled')
+plt.xticks(fontsize=12)
+plt.yticks(fontsize=12)
+# trailing
+# plt.subplot(gs2[2])
+plt.subplot(nrows,ncols,6)
+# plt.scatter(uradt,vrott,s=30)
+plt.errorbar(np.mean(uradt_sam,axis=0).reshape(ntrail) \
+  ,np.mean(vrott_sam,axis=0).reshape(ntrail) \
+  ,xerr=np.std(uradt_sam,axis=0).reshape(ntrail) \
+  ,yerr=np.std(vrott_sam,axis=0).reshape(ntrail),fmt='.')
+plt.xlabel(r"U (km/s)",fontsize=12,fontname="serif")
+plt.ylabel(r"V (km/s)",fontsize=12,fontname="serif")
+plt.axis([-60.0,60.0,-60.0,60.0],'scaled')
+plt.xticks(fontsize=12)
+plt.yticks(fontsize=12)
+# plot
+plt.tight_layout()
+plt.show()
+
 
 ##### plot
 
