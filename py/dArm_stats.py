@@ -2,7 +2,7 @@
 #
 # darm_stats.py
 #
-#  16 November 2017 - written D. Kawata
+#  20 November 2017 - written D. Kawata
 #
 
 import pyfits
@@ -30,21 +30,15 @@ def funcdarm2(x,armp,xposp,yposp):
 
   return darm2
 
-# distance as a function of x
-
-
 # define computing the distance to the arm
-def distarm(armp,galp,xpos,ypos):
-# Arm parameters
-  angref,rref,tanpa=armp
-# Galactic parameters
-  rsun=galp
+def distarm(tanpa,angref,rref,xpos,ypos):
 
 # find minimum 
   darm=np.zeros(len(xpos))
   angmin=np.zeros(len(xpos))
 
   for i in range(len(xpos)):
+    armp=angref[i],rref[i],tanpa[i]
     res=minimize_scalar(funcdarm2,args=(armp,xpos[i],ypos[i]),bounds=(0.0,1.5*np.pi),method='bounded')
     if res.success==False:
       print ' no minimize result at i,x,y=',i,xpos[i],ypos[i]
@@ -56,18 +50,53 @@ def distarm(armp,galp,xpos,ypos):
 
 ##### starting main programme
 
+# options
+MCsample_v=True
+MCsample_vgalp=True
+
+if MCsample_vgalp==True:
+  MCsample_v=True
+
+print ' MCsample_v, MCsample_vgalp=',MCsample_v,MCsample_vgalp
+
+# Reid et al. (2014)'s Galactic parameters
 # Sun's position
-# Reid et al. (2014)
-rsun=8.34
+rsunr14=8.34
+
+print ' Rsun in Reid et al. (2014)=',rsunr14
+
+# Galactic parameters and uncertainties
+# Bland-Hawthorn & Gerhard (2016) 
+rsun=8.2
+rsunsig=0.1
+omgsun=30.24
+omgsunsig=0.12
 # Sun's proper motion Schoenrich et al.
-usun=11.1
-vsun=12.24
-zsun=7.25
-# Reid et al. (2014)
-vcirc=240.0
-# dvcdr=-3.6
-dvcdr=0.0
-print 'dVc/dR=',dvcdr
+usun=10.0
+usunsig=1.0
+vsun=11.0
+vsunsig=2.0
+wsun=7.0
+wsunsig=0.5
+# Feast & Whitelock (1997)
+dvcdr=-2.4
+dvcdrsig=1.2
+# Vcirc
+vcirc=omgsun*rsun
+
+print '### Assumed Galactic parameters'
+print ' Rsun=',rsun,'+-',rsunsig,' kpc'
+print ' Omega_sun=',omgsun,'+-',omgsunsig,' km/s/kpc'
+print ' Solar proper motion U =',usun,'+-',usunsig,' km/s'
+print ' Solar proper motion V =',vsun,'+-',vsunsig,' km/s'
+print ' Solar proper motion W =',wsun,'+-',wsunsig,' km/s'
+print ' dVc/dR =',dvcdr,'+-',dvcdrsig,' km/s/kpc'
+print ' default Vcirc=',vcirc,' km/s'
+
+if MCsample_vgalp==False:
+  print ' Because the arm position will not be adjusted, rsun set to be Rr14=' \
+    ,rsunr14
+  # rsun=rsunr14
 
 # read the data with velocity with MC error
 # read verr_mc.py output
@@ -78,7 +107,7 @@ star_hdus.close()
 
 # select stars
 # select only velocity error is small enough
-Verrlim=1000.0
+Verrlim=20.0
 zmaxlim=0.5
 distmaxlim=10.0
 zwerr=np.power(10.0,(star['Mod']+star['e_Mod']+5.0)/5.0)*0.001 \
@@ -88,7 +117,6 @@ dist=np.power(10.0,(star['Mod']+5.0)/5.0)*0.001
 sindx=np.where((verr<Verrlim) & \
                (np.abs(zwerr)<zmaxlim) & \
                (dist<distmaxlim))
-
 
 # name
 namev=star['Name'][sindx]
@@ -138,7 +166,7 @@ pmlatv=vlatv/(pmvconst*distv)
 Tvxvyvz=bovy_coords.vrpmllpmbb_to_vxvyvz(hrvv,pmlonv,pmlatv,glonv,glatv,distv,degree=True)
 vxv=Tvxvyvz[:,0]+usun
 vyv=Tvxvyvz[:,1]+vsun
-vzv=Tvxvyvz[:,2]+zsun
+vzv=Tvxvyvz[:,2]+wsun
 # Vcirc at the radius of the stars, including dVc/dR
 vcircrv=vcirc+dvcdr*(rgalv-rsun)
 vyv=vyv+vcircrv
@@ -157,227 +185,119 @@ vrotv=(vxv*yposv-vyv*xposv)/rgalv
 
 ### compute distance from the arm
 # Perseus
-angen=(180.0-88.0)*np.pi/180.0
-angst=(180.0+21.0)*np.pi/180.0
-angref=(180.0-14.2)*np.pi/180.0
-rref=9.9
+angenr14=(180.0-88.0)*np.pi/180.0
+angstr14=(180.0+21.0)*np.pi/180.0
+angrefr14=(180.0-14.2)*np.pi/180.0
+rrefr14=9.9
 # pitchangle
 tanpa=np.tan(9.4*np.pi/180.0)
 
-print ' ang range=',angst,angen
-
-# set parameters
-angrange=angst,angen
-armp=angref,rref,tanpa
-galp=rsun
-
-# compute distances from the arm
-darmv=np.zeros_like(xposv)
-angarmv=np.zeros_like(xposv)
-darmv,angarmv=distarm(armp,galp,xposv,yposv)
-
-f=open('darm.asc','w')
-i=0
-rspv=np.exp(tanpa*(angarmv-angref))*rref
-xarmp=rspv*np.cos(angarmv)
-yarmp=rspv*np.sin(angarmv)
-darmsunv=np.sqrt((xarmp+rsun)**2+yarmp**2)
-distxyv=distv*np.cos(glatradv)
-for i in range(nstarv):
-#  if angarm[i]>angst and angarm[i]<angen:
-  if distxyv[i]>darmsunv[i] and xposv[i]<-rsun:
-    darmv[i]=-darmv[i]
-  print >>f,"%f %f %f %f %f %f %f" %( \
-    xposv[i],yposv[i],darmv[i],rspv[i]*np.cos(angarmv[i]) \
-   ,rspv[i]*np.sin(angarmv[i]),angarmv[i]*180.0/np.pi,darmsunv[i])
-f.close()
-
-nrows=3
-ncols=3
-#gs1=gridspec.GridSpec(1,3)
-# gs1.update(left=0.1,right=0.975,bottom=0.55,top=0.95)
-# around the arm
-warm=1.5
-sindxarm=np.where((darmv>-warm) & (darmv<warm))
-uradwarm=-vradv[sindxarm]
-vrotwarm=vrotv[sindxarm]
-darmwarm=darmv[sindxarm]
-
-print ' number of stars |darm|<',warm,'=',len(uradwarm)
-print ' U,V corrcoef=',np.corrcoef(darmwarm,uradwarm)[0,1] \
-  ,np.corrcoef(darmwarm,vrotwarm)[0,1]
-
-# plot d vs. U
-plt.subplot(nrows,ncols,1)
-plt.scatter(darmwarm,uradwarm,s=30)
-plt.xlabel(r"d (kpc)",fontsize=12,fontname="serif")
-plt.ylabel(r"U (km/s)",fontsize=12,fontname="serif")
-plt.axis([-warm,warm,-80.0,80.0],'scaled')
-plt.xticks(fontsize=12)
-plt.yticks(fontsize=12)
-# plot d vs. V
-# plt.subplot(gs1[1])
-plt.subplot(nrows,ncols,2)
-plt.scatter(darmwarm,vrotwarm,s=30)
-plt.xlabel(r"d (kpc)",fontsize=12,fontname="serif")
-plt.ylabel(r"V (km/s)",fontsize=12,fontname="serif")
-plt.axis([-warm,warm,-80.0,80.0],'scaled')
-plt.xticks(fontsize=12)
-plt.yticks(fontsize=12)
-
-# leading and training
-dleadmax=-0.2
-dleadmin=-1.5
-dtrailmax=1.5
-dtrailmin=0.2
-sindxlead=np.where((darmv>dleadmin) & (darmv<dleadmax))
-sindxtrail=np.where((darmv>dtrailmin) & (darmv<dtrailmax))
-
-print ' Leading d range min,max=',dleadmin,dleadmax
-print ' Trailing d range min,max=',dleadmin,dleadmax
-
-# U is positive toward centre
-uradl=-vradv[sindxlead]
-uradt=-vradv[sindxtrail]
-print ' numper of stars leading=',len(uradl)
-print ' numper of stars trailing=',len(uradt)
-# V
-vrotl=vrotv[sindxlead]
-vrott=vrotv[sindxtrail]
-
-print ' Leading U med,mean,sig=',np.median(uradl),np.mean(uradl),np.std(uradl)
-print ' Trailing U med,mean,sig=',np.median(uradt),np.mean(uradt),np.std(uradt)
-print ' Leading V med,mean,sig=',np.median(vrotl),np.mean(vrotl),np.std(vrotl)
-print ' Trailing V med,mean,sig=',np.median(vrott),np.mean(vrott),np.std(vrott)
-
-# vertex deviation
-# covariance of leading part
-# leading part
-v2dl=np.vstack((uradl,vrotl))
-vcovl=np.cov(v2dl)
-# print ' leading cov=',vcovl
-# print ' std U, V=',np.sqrt(vcovl[0,0]),np.sqrt(vcovl[1,1])
-print ' Leading vertex deviation=',(180.0/np.pi)*0.5*np.arctan(2.0*vcovl[0,1] \
- /(vcovl[0,0]-vcovl[1,1]))
-# trailing part
-v2dt=np.vstack((uradt,vrott))
-vcovt=np.cov(v2dt)
-# print ' Trailing cov=',vcovt
-print ' Trailing vertex deviation=',(180.0/np.pi)*0.5*np.arctan(2.0*vcovt[0,1] \
- /(vcovt[0,0]-vcovt[1,1]))
-
-# bottom panel
-# U hist
-# gs2=gridspec.GridSpec(1,3)
-# gs2.update(left=0.1,right=0.975,bottom=0.1,top=0.4)
-# plt.subplot(gs2[0])
-plt.subplot(nrows,ncols,4)
-plt.hist(uradt,bins=20,range=(-60,80),normed=True,histtype='step',color='b' \
- ,linewidth=2.0)
-plt.hist(uradl,bins=20,range=(-60,80),normed=True,histtype='step',color='r' \
- ,linewidth=2.0)
-plt.xlabel(r"U (km/s)",fontsize=12,fontname="serif")
-plt.ylabel(r"dN",fontsize=12,fontname="serif")
-# V hist
-# plt.subplot(gs2[1])
-plt.subplot(nrows,ncols,5)
-plt.hist(vrott,bins=20,range=(-60,80),normed=True,histtype='step',color='b' \
- ,linewidth=2.0)
-plt.hist(vrotl,bins=20,range=(-60,80),normed=True,histtype='step',color='r' \
- ,linewidth=2.0)
-plt.xlabel(r"U (km/s)",fontsize=12,fontname="serif")
-plt.ylabel(r"dN",fontsize=12,fontname="serif")
-# U-V map
-# leading
-# plt.subplot(gs1[2])
-plt.subplot(nrows,ncols,3)
-plt.scatter(uradl,vrotl,s=30)
-plt.xlabel(r"U (km/s)",fontsize=12,fontname="serif")
-plt.ylabel(r"V (km/s)",fontsize=12,fontname="serif")
-plt.axis([-60.0,60.0,-60.0,60.0],'scaled')
-plt.xticks(fontsize=12)
-plt.yticks(fontsize=12)
-# trailing
-# plt.subplot(gs2[2])
-plt.subplot(nrows,ncols,6)
-plt.scatter(uradt,vrott,s=30)
-plt.xlabel(r"U (km/s)",fontsize=12,fontname="serif")
-plt.ylabel(r"V (km/s)",fontsize=12,fontname="serif")
-plt.axis([-60.0,60.0,-60.0,60.0],'scaled')
-plt.xticks(fontsize=12)
-plt.yticks(fontsize=12)
-# plot
-plt.tight_layout()
-plt.show()
+# print ' ang range=',angstr14,angenr14
 
 ##### MC error sampling
-print '##### MC error sampling, velocity and distance'
-# velocity and distance error only
 nmc=100
+if MCsample_v==False and MCsample_vgalp==False:
+  nmc=1
+
 # sample from proper-motion covariance matrix
-pmradec_mc=np.empty((nstarv,2,nmc))
-pmradec_mc[:,0,:]=np.atleast_2d(pmrav).T
-pmradec_mc[:,1,:]=np.atleast_2d(pmdecv).T
-for ii in range(nstarv):
-  # constract covariance matrix
-  tcov=np.zeros((2,2))
-  tcov[0,0]=errpmrav[ii]**2.0/2.0  # /2 because of symmetrization below
-  tcov[1,1]=errpmdecv[ii]**2.0/2.0
-  tcov[0,1]=pmradec_corrv[ii]*errpmrav[ii]*errpmdecv[ii]
-  # symmetrise
-  tcov=(tcov+tcov.T)
-  # Cholesky decomp.
-  L=np.linalg.cholesky(tcov)
-  pmradec_mc[ii]+=np.dot(L,np.random.normal(size=(2,nmc)))
+if MCsample_v==True:
+  pmradec_mc=np.empty((nstarv,2,nmc))
+  pmradec_mc[:,0,:]=np.atleast_2d(pmrav).T
+  pmradec_mc[:,1,:]=np.atleast_2d(pmdecv).T
+  for ii in range(nstarv):
+    # constract covariance matrix
+    tcov=np.zeros((2,2))
+    tcov[0,0]=errpmrav[ii]**2.0/2.0  # /2 because of symmetrization below
+    tcov[1,1]=errpmdecv[ii]**2.0/2.0
+    tcov[0,1]=pmradec_corrv[ii]*errpmrav[ii]*errpmdecv[ii]
+    # symmetrise
+    tcov=(tcov+tcov.T)
+    # Cholesky decomp.
+    L=np.linalg.cholesky(tcov)
+    pmradec_mc[ii]+=np.dot(L,np.random.normal(size=(2,nmc)))
 
 # distribution of velocity and distance. 
 # -> pml pmb
-ratile=np.tile(rav,(nmc,1)).flatten()
-dectile=np.tile(decv,(nmc,1)).flatten()
-pmllbb_sam=bovy_coords.pmrapmdec_to_pmllpmbb(pmradec_mc[:,0,:].T.flatten() \
-  ,pmradec_mc[:,1:].T.flatten(),ratile,dectile,degree=True,epoch=2000.0)
+  ratile=np.tile(rav,(nmc,1)).flatten()
+  dectile=np.tile(decv,(nmc,1)).flatten()
+  pmllbb_sam=bovy_coords.pmrapmdec_to_pmllpmbb(pmradec_mc[:,0,:].T.flatten() \
+    ,pmradec_mc[:,1:].T.flatten(),ratile,dectile,degree=True,epoch=2000.0)
 # reshape
-pmllbb_sam=pmllbb_sam.reshape((nmc,nstarv,2))
+  pmllbb_sam=pmllbb_sam.reshape((nmc,nstarv,2))
 # distance MC sampling 
-modv_sam=np.random.normal(modv,errmodv,(nmc,nstarv))
+  modv_sam=np.random.normal(modv,errmodv,(nmc,nstarv))
 # 
-distv_sam=np.power(10.0,(modv_sam+5.0)/5.0)*0.001
+  distv_sam=np.power(10.0,(modv_sam+5.0)/5.0)*0.001
 # radial velocity MC sampling
-hrvv_sam=np.random.normal(hrvv,errhrvv,(nmc,nstarv))
+  hrvv_sam=np.random.normal(hrvv,errhrvv,(nmc,nstarv))
 # -> vx,vy,vz
-vxvyvz_sam=bovy_coords.vrpmllpmbb_to_vxvyvz(hrvv_sam.flatten() \
- ,pmllbb_sam[:,:,0].flatten(),pmllbb_sam[:,:,1].flatten() \
- ,np.tile(glonv,(nmc,1)).flatten(),np.tile(glatv,(nmc,1)).flatten() \
- ,distv_sam.flatten(),degree=True)
+  vxvyvz_sam=bovy_coords.vrpmllpmbb_to_vxvyvz(hrvv_sam.flatten() \
+   ,pmllbb_sam[:,:,0].flatten(),pmllbb_sam[:,:,1].flatten() \
+   ,np.tile(glonv,(nmc,1)).flatten(),np.tile(glatv,(nmc,1)).flatten() \
+   ,distv_sam.flatten(),degree=True)
 # reshape
-vxvyvz_sam=vxvyvz_sam.reshape((nmc,nstarv,3))
-vxv_sam=vxvyvz_sam[:,:,0]+usun
-vyv_sam=vxvyvz_sam[:,:,1]+vsun
-vzv_sam=vxvyvz_sam[:,:,2]+zsun
-# x, y position
-glonradv_sam=np.tile(glonradv,(nmc,1))
-glatradv_sam=np.tile(glatradv,(nmc,1))
-xposv_sam=-rsun+np.cos(glonradv_sam)*distv_sam*np.cos(glatradv_sam)
-yposv_sam=np.sin(glonradv_sam)*distv_sam*np.cos(glatradv_sam)
-zposv_sam=distv_sam*np.sin(glatradv_sam)
-# rgal with Reid et al. value
-rgalv_sam=np.sqrt(xposv_sam**2+yposv_sam**2)
-# Vcirc at the radius of the stars, including dVc/dR
-vcircrv_sam=vcirc+dvcdr*(rgalv_sam-rsun)
-vyv_sam=vyv_sam+vcircrv_sam
-# original velocity
-vxv0_sam=vxv_sam
-vyv0_sam=vyv_sam
-vzv0_sam=vzv_sam
-# Galactic radius and velocities
-vradv0_sam=(vxv0_sam*xposv_sam+vyv0_sam*yposv_sam)/rgalv_sam
-vrotv0_sam=(vxv0_sam*yposv_sam-vyv0_sam*xposv_sam)/rgalv_sam
-# then subtract circular velocity contribution
-vxv_sam=vxv_sam-vcircrv_sam*yposv_sam/rgalv_sam
-vyv_sam=vyv_sam+vcircrv_sam*xposv_sam/rgalv_sam
-vradv_sam=(vxv_sam*xposv_sam+vyv_sam*yposv_sam)/rgalv_sam
-vrotv_sam=(vxv_sam*yposv_sam-vyv_sam*xposv_sam)/rgalv_sam
+  vxvyvz_sam=vxvyvz_sam.reshape((nmc,nstarv,3))
 
+  # sampling the Galactic parameters
+  if MCsample_vgalp==True:
+    rsun_sam=np.tile(np.random.normal(rsun,rsunsig,nmc),(nstarv,1)).T
+    omgsun_sam=np.tile(np.random.normal(omgsun,omgsunsig,nmc),(nstarv,1)).T
+    dvcdr_sam=np.tile(np.random.normal(dvcdr,dvcdrsig,nmc),(nstarv,1)).T
+    usun_sam=np.tile(np.random.normal(usun,usunsig,nmc),(nstarv,1)).T
+    vsun_sam=np.tile(np.random.normal(vsun,vsunsig,nmc),(nstarv,1)).T
+    wsun_sam=np.tile(np.random.normal(wsun,wsunsig,nmc),(nstarv,1)).T
+  else:
+    rsun_sam=np.tile(rsun,(nmc,nstarv))
+    omgsun_sam=np.tile(omgsun,(nmc,nstarv))
+    dvcdr_sam=np.tile(dvcdr,(nmc,nstarv))
+    usun_sam=np.tile(usun,(nmc,nstarv))
+    vsun_sam=np.tile(vsun,(nmc,nstarv))
+    wsun_sam=np.tile(wsun,(nmc,nstarv))
+
+  f=open('mcgalpsamp.asc','w')
+  for j in range(nstarv):
+    for i in range(nmc):
+      print >>f,"%d %d %f %f %f %f %f" %(i,j,rsun_sam[i,j],omgsun_sam[i,j] \
+       ,dvcdr_sam[i,j],usun_sam[i,j],vsun_sam[i,j])
+  f.close()
+
+  vxv_sam=vxvyvz_sam[:,:,0]+usun_sam
+  vyv_sam=vxvyvz_sam[:,:,1]+vsun_sam
+  vzv_sam=vxvyvz_sam[:,:,2]+wsun_sam
+# x, y position
+  glonradv_sam=np.tile(glonradv,(nmc,1))
+  glatradv_sam=np.tile(glatradv,(nmc,1))
+  xposv_sam=-rsun_sam+np.cos(glonradv_sam)*distv_sam*np.cos(glatradv_sam)
+  yposv_sam=np.sin(glonradv_sam)*distv_sam*np.cos(glatradv_sam)
+  zposv_sam=distv_sam*np.sin(glatradv_sam)
+# rgal with Reid et al. value
+  rgalv_sam=np.sqrt(xposv_sam**2+yposv_sam**2)
+# Vcirc at the radius of the stars, including dVc/dR
+  vcircrv_sam=omgsun_sam*rsun_sam-vsun_sam+dvcdr_sam*(rgalv_sam-rsun_sam)
+  vyv_sam=vyv_sam+vcircrv_sam
+# original velocity
+  vxv0_sam=vxv_sam
+  vyv0_sam=vyv_sam
+  vzv0_sam=vzv_sam
+# Galactic radius and velocities
+  vradv0_sam=(vxv0_sam*xposv_sam+vyv0_sam*yposv_sam)/rgalv_sam
+  vrotv0_sam=(vxv0_sam*yposv_sam-vyv0_sam*xposv_sam)/rgalv_sam
+# then subtract circular velocity contribution
+  vxv_sam=vxv_sam-vcircrv_sam*yposv_sam/rgalv_sam
+  vyv_sam=vyv_sam+vcircrv_sam*xposv_sam/rgalv_sam
+  vradv_sam=(vxv_sam*xposv_sam+vyv_sam*yposv_sam)/rgalv_sam
+  vrotv_sam=(vxv_sam*yposv_sam-vyv_sam*xposv_sam)/rgalv_sam
+else:
+  xposv_sam=np.tile(xposv,(nmc,1))
+  yposv_sam=np.tile(yposv,(nmc,1))
+  distv_sam=np.tile(distv,(nmc,1))
+  vradv_sam=np.tile(vradv,(nmc,1))
+  vrotv_sam=np.tile(vrotv,(nmc,1))
+  glonradv_sam=np.tile(glonradv,(nmc,1))
+  glatradv_sam=np.tile(glatradv,(nmc,1))
+  rsun_sam=np.tile(rsun,(nmc,nstarv))
+
+# output
 f=open('mcsample.asc','w')
 for j in range(nstarv):
   for i in range(nmc):
@@ -387,15 +307,29 @@ for j in range(nstarv):
 f.close()
 
 # compute distances from the arm
+# recompute angref and rref
+# x,y arm ref position w.r.t. the Sun in Reid et al. (2014)
+xarms=rrefr14*np.cos(angrefr14)+rsunr14
+yarms=rrefr14*np.sin(angrefr14)
+print ' arm reference x,y position w.r.t. the Sun=',xarms,yarms,np.arcsin(yarms/rrefr14)
+# new angref and Ref 
+rref_sam=np.sqrt(yarms**2+(xarms-rsun_sam)**2)
+angref_sam=np.pi-np.arcsin(yarms/rref_sam)
+# for test
+# for i in range(nmc):
+#  print ' Rref,Angrefr14,Rsam,Angsam0,1=',rrefr14,angrefr14,rref_sam[i,0] \
+#   ,angref_sam[i,0],rref_sam[i,1],angref_sam[i,1]
 darmv_sam=np.zeros_like(xposv_sam.flatten())
 angarmv_sam=np.zeros_like(xposv_sam.flatten())
-darmv_sam,angarmv_sam=distarm(armp,galp,xposv_sam.flatten(),yposv_sam.flatten())
+darmv_sam,angarmv_sam=distarm(np.tile(tanpa,(nmc,nstarv)).flatten() \
+  ,angref_sam.flatten(),rref_sam.flatten() \
+  ,xposv_sam.flatten(),yposv_sam.flatten())
 # reshape
 darmv_sam=darmv_sam.reshape((nmc,nstarv))
 angarmv_sam=angarmv_sam.reshape((nmc,nstarv))
 
 # check the position relative to the arm
-rspv_sam=np.exp(tanpa*(angarmv_sam-angref))*rref
+rspv_sam=np.exp(tanpa*(angarmv_sam-angref_sam))*rref_sam
 xarmp_sam=rspv_sam*np.cos(angarmv_sam)
 yarmp_sam=rspv_sam*np.sin(angarmv_sam)
 darmsunv_sam=np.sqrt((xarmp_sam+rsun)**2+yarmp_sam**2)
@@ -410,6 +344,25 @@ darmv_mean=np.mean(darmv_sam,axis=0).reshape(nstarv)
 angarmv_mean=np.mean(angarmv_sam,axis=0).reshape(nstarv)
 vradv_mean=np.mean(vradv_sam,axis=0).reshape(nstarv)
 vrotv_mean=np.mean(vrotv_sam,axis=0).reshape(nstarv)
+
+# output
+f=open('mcsample_darm.asc','w')
+for j in range(nstarv):
+  for i in range(nmc):
+    if MCsample_v==True:
+      print >>f,"%f %f %f %f %f %f %f %f %f %f %f %f %f %f %f %f %f %f" %( \
+       xposv_sam[i,j],yposv_sam[i,j],xposv[j],yposv[j] \
+      ,vradv_sam[i,j],vrotv_sam[i,j],vradv[j],vrotv[j] \
+      ,darmv_sam[i,j],darmv_mean[j],vradv_mean[j],vrotv_mean[j] \
+      ,rsun_sam[i,j],vcircrv_sam[i,j],usun_sam[i,j],rgalv_sam[i,j] \
+      ,rref_sam[i,j],angref_sam[i,j])
+    else:
+      print >>f,"%f %f %f %f %f %f %f %f %f %f %f %f" %( \
+       xposv_sam[i,j],yposv_sam[i,j],xposv[j],yposv[j] \
+      ,vradv_sam[i,j],vrotv_sam[i,j],vradv[j],vrotv[j] \
+      ,darmv_sam[i,j],darmv_mean[j],vradv_mean[j],vrotv_mean[j])
+f.close()
+
 
 # sampling the stars around the arm
 nrows=3
@@ -465,6 +418,11 @@ plt.xticks(fontsize=12)
 plt.yticks(fontsize=12)
 
 # leading and training
+# leading and training
+dleadmax=-0.2
+dleadmin=-1.5
+dtrailmax=1.5
+dtrailmin=0.2
 sindxlead=np.where((darmv_mean>dleadmin) & (darmv_mean<dleadmax))
 sindxtrail=np.where((darmv_mean>dtrailmin) & (darmv_mean<dtrailmax))
 
@@ -673,7 +631,7 @@ while i<nstarv:
 
 # plot Cepheids data point
 plt.scatter(-rsun,0.0,marker="*",s=100,color='k')
-plt.scatter(xposv,yposv,c=darmv,s=30,vmin=-4.0,vmax=4.0)
+plt.scatter(xposv,yposv,c=darmv_mean,s=30,vmin=-4.0,vmax=4.0)
 plt.xlabel(r"X (kpc)",fontsize=18,fontname="serif")
 plt.ylabel(r"Y (kpc)",fontsize=18,fontname="serif")
 plt.axis([-13.0,-3.0,-4.5,4.5],'scaled')
