@@ -3,7 +3,8 @@
 # verr_mc.py
 #  estimating velocity error using MC sampling
 #
-#  30 June 2017 - written D. Kawata
+#  use only Genovali+Melnik data
+#  22 November 2017 - written D. Kawata
 #
 
 import pyfits
@@ -16,107 +17,37 @@ from scipy import stats
 from galpy.util import bovy_coords
 
 # read the data with velocity info.
-infile='/Users/dkawata/work/obs/Cepheids/Genovali14/G14T34+TGAS+Gorynya.fits'
+infile='/Users/dkawata/work/obs/Cepheids/Genovali14/G14T34+TGAS+Melnik15.fits'
 star_hdus=pyfits.open(infile)
 star=star_hdus[1].data
 star_hdus.close()
+# select stars with HRV info
+sindx=np.where(star['r_HRV']>0) 
 # number of data points
-nstarv1=len(star['Mod'])
-print 'number of stars from 1st file =',nstarv1
+nstarv=np.size(sindx)
+print 'number of stars from 1st file =',nstarv
 # name
-name=star['Name_1']
+name=star['Name'][sindx]
 # extract the necessary particle info
-glonv=star['_Glon']
-glatv=star['_Glat']
+glonv=star['_Glon'][sindx]
+glatv=star['_Glat'][sindx]
 # rescaled Fe/H
-fehv=star['__Fe_H_']
-distv=np.power(10.0,(star['Mod']+5.0)/5.0)*0.001
-modv=star['Mod']
-moderrv=star['e_Mod']
+fehv=star['__Fe_H_'][sindx]
+modv=star['Mod'][sindx]
+distv=np.power(10.0,(modv+5.0)/5.0)*0.001
+moderrv=star['e_Mod'][sindx]
 # RA, DEC from Gaia data
-rav=star['_RA']
-decv=star['_DE']
-pmrav=star['pmra']
-pmdecv=star['pmdec']
-errpmrav=star['pmra_error']
-errpmdecv=star['pmdec_error']
-pmradec_corrv=star['pmra_pmdec_corr']
-hrvv=star['HRV']
-errhrvv=star['e_HRV']
-logp=star['logPer']
-photnotes=star['Notes']
-
-### read 2nd file
-infile='/Users/dkawata/work/obs/Cepheids/Genovali14/G14T34+TGAS+Melnik15-Gorynya_wHRV.fits'
-star_hdus=pyfits.open(infile)
-star=star_hdus[1].data
-star_hdus.close()
-# read the 2nd data
-# number of data points
-nstarv2=len(star['Mod'])
-print 'number of stars from 2nd file =',nstarv2
-nstarv=nstarv1+nstarv2
-print 'total number of stars =',nstarv
-# name
-name=np.hstack((name,star['Name']))
-# extract the necessary particle info
-glonv=np.hstack((glonv,star['_Glon']))
-glatv=np.hstack((glatv,star['_Glat']))
-# rescaled Fe/H
-fehv=np.hstack((fehv,star['__Fe_H_']))
-distv=np.hstack((distv,np.power(10.0,(star['Mod']+5.0)/5.0)*0.001))
-modv=np.hstack((modv,star['Mod']))
-moderrv=np.hstack((moderrv,star['e_Mod']))
-# RA, DEC from Gaia data
-rav=np.hstack((rav,star['_RA_1']))
-decv=np.hstack((decv,star['_DE_1']))
-pmrav=np.hstack((pmrav,star['pmra']))
-pmdecv=np.hstack((pmdecv,star['pmdec']))
-errpmrav=np.hstack((errpmrav,star['pmra_error']))
-errpmdecv=np.hstack((errpmdecv,star['pmdec_error']))
-pmradec_corrv=np.hstack((pmradec_corrv,star['pmra_pmdec_corr']))
-hrvv=np.hstack((hrvv,star['HRV']))
-errhrvv=np.hstack((errhrvv,star['e_HRV']))
-logp=np.hstack((logp,star['logPer']))
-photnotes=np.hstack((photnotes,star['Notes']))
-
-# read the 3rd data
-addDDO=True
-# addDDO=False
-if addDDO==True:
-  infile='/Users/dkawata/work/obs/Cepheids/Genovali14/G14T34+TGAS+DDO16-Gorynya-Melnik15.fits'
-# default HRV error
-  HRVerr=2.0
-  star_hdus=pyfits.open(infile)
-  star=star_hdus[1].data
-  star_hdus.close()
-# number of data points
-  nstarv3=len(star['Mod'])
-  print 'number of stars from 3rd file =',nstarv3
-  nstarv=nstarv1+nstarv2+nstarv3
-  print 'total number of stars =',nstarv
-# name
-  name=np.hstack((name,star['Name']))
-# extract the necessary particle info
-  glonv=np.hstack((glonv,star['_Glon']))
-  glatv=np.hstack((glatv,star['_Glat']))
-# rescaled Fe/H
-  fehv=np.hstack((fehv,star['__Fe_H_']))
-  distv=np.hstack((distv,np.power(10.0,(star['Mod']+5.0)/5.0)*0.001))
-  modv=np.hstack((modv,star['Mod']))
-  moderrv=np.hstack((moderrv,star['e_Mod']))
-# RA, DEC from Gaia data
-  rav=np.hstack((rav,star['_RA']))
-  decv=np.hstack((decv,star['_DE']))
-  pmrav=np.hstack((pmrav,star['pmra']))
-  pmdecv=np.hstack((pmdecv,star['pmdec']))
-  errpmrav=np.hstack((errpmrav,star['pmra_error']))
-  errpmdecv=np.hstack((errpmdecv,star['pmdec_error']))
-  pmradec_corrv=np.hstack((pmradec_corrv,star['pmra_pmdec_corr']))
-  hrvv=np.hstack((hrvv,star['RV_mean']))
-  errhrvv=np.hstack((errhrvv,np.ones(nstarv3)*HRVerr))
-  logp=np.hstack((logp,star['logPer']))
-  photnotes=np.hstack((photnotes,star['Notes']))
+rav=star['_RA_1'][sindx]
+decv=star['_DE_1'][sindx]
+pmrav=star['pmra'][sindx]
+pmdecv=star['pmdec'][sindx]
+errpmrav=star['pmra_error'][sindx]
+errpmdecv=star['pmdec_error'][sindx]
+pmradec_corrv=star['pmra_pmdec_corr'][sindx]
+hrvv=star['HRV'][sindx]
+errhrvv=star['e_HRV'][sindx]
+logp=star['logPer'][sindx]
+photnotes=star['Notes'][sindx]
 
 # use galpy RA,DEC -> Glon,Glat
 # Tlb=bovy_coords.radec_to_lb(rav,decv,degree=True,epoch=2000.0)
