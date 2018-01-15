@@ -267,15 +267,15 @@ simdata=False
 # simdata_targets=True
 simdata_targets=False
 # mock data test using the location of input data
-mocktest=True
-# mocktest=False
+# mocktest=True
+mocktest=False
 # add V and distance error to mock data.
-mocktest_adderr=True
-# mocktest_adderr=False
+# mocktest_adderr=True
+mocktest_adderr=False
 
 # mc sampling of likelihood take into account the errors
-mcerrlike=True
-# mcerrlike=False
+# mcerrlike=True
+mcerrlike=False
 # number of MC sample for Vlon sample
 # nmc=1000
 nmc=100
@@ -783,6 +783,9 @@ hrvsig2s=(sigrR0**2)*(1.0+(np.sin(phis+glonrads)**2)*(Xsq-1.0))
 vlonmeans=(VcRs-Vasyms)*np.cos(phis+glonrads)
 vlonsig2s=(sigrR0**2)*(1.0+(np.cos(phis+glonrads)**2)*(Xsq-1.0))
 
+if rank==0:
+  print "Galactic radial velocity mean and dispersion=",np.mean(vradgals),np.std(vradgals)
+
 # output ascii data for test
 if rank==0:
   f=open('axsymdiskm-fit_hrvvlonmean_test.asc','w')
@@ -980,17 +983,17 @@ if rank==0:
   print ' Initial ln likelihood=',lnlikeini
 
 # anotehr trial likelihood
-modelp[2]=-8.5
-lnlikeini=lnprob(modelp,flags,fixvals,stardata)
-if rank==0:
-  print ' Initial parameters=',modelp
-  print ' Initial ln likelihood=',lnlikeini
+# modelp[2]=-8.5
+# lnlikeini=lnprob(modelp,flags,fixvals,stardata)
+# if rank==0:
+#   print ' Initial parameters=',modelp
+#   print ' Initial ln likelihood=',lnlikeini
 # anotehr trial likelihood
-modelp[2]=-8.0
-lnlikeini=lnprob(modelp,flags,fixvals,stardata)
-if rank==0:
-  print ' Initial parameters=',modelp
-  print ' Initial ln likelihood=',lnlikeini
+# modelp[2]=-8.0
+# lnlikeini=lnprob(modelp,flags,fixvals,stardata)
+# if rank==0:
+#   print ' Initial parameters=',modelp
+#   print ' Initial ln likelihood=',lnlikeini
 
 modelp[2]=modelp0[2]
 
