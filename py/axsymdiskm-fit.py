@@ -3,7 +3,7 @@
 # axsymdiskm-fit.py
 #  fitting axisymmetric disk model to Cepheids kinematics data
 #
-#  6 Nov. 2017 - written D. Kawata
+#  12 Jan. 2018 - written D. Kawata
 #
 
 import pyfits
@@ -202,7 +202,8 @@ def lnprior(modelp,flags,fixvals):
   else:
     dVcdR=0.0
 
-  if VcR0<150.0 or VcR0>350.0 or Vphsun<150.0 or Vphsun>350.0 \
+  # if VcR0<150.0 or VcR0>350.0 or Vphsun<150.0 or Vphsun>350.0 \
+  if VcR0<-150.0 or VcR0>350.0 or Vphsun<-150.0 or Vphsun>350.0 \
     or np.abs(Vrsun)>100.0 or sigrR0<0.0 or sigrR0>100.0 \
     or hsig<0.0 or hsig>800.0 or Xsq<0.0 or Xsq>100.0 or R0<0.0 \
     or R0>30.0 or np.abs(hrvsys)>100.0 or np.abs(dVcdR)>100.0:
@@ -269,20 +270,20 @@ simdata_targets=False
 mocktest=True
 # mocktest=False
 # add V and distance error to mock data.
-# mocktest_adderr=True
-mocktest_adderr=False
+mocktest_adderr=True
+# mocktest_adderr=False
 
 # mc sampling of likelihood take into account the errors
-# mcerrlike=True
-mcerrlike=False
+mcerrlike=True
+# mcerrlike=False
 # number of MC sample for Vlon sample
-nmc=1000
-# nmc=100
+# nmc=1000
+nmc=100
 
 # only effective mcerrlike==False, take into account Verror only,
 # ignore distance error
-# withverr=True
-withverr=False
+withverr=True
+# withverr=False
 if mcerrlike==True:
   withverr=True
 # no distance modulus error
@@ -312,8 +313,8 @@ else:
   hrvsys_fit=False
 
 # fit dVcdR or not
-# dVcdR_fit=True
-dVcdR_fit=False
+dVcdR_fit=True
+# dVcdR_fit=False
 
 # set all flags
 flags=hrhsig_fix,hrvsys_fit,dVcdR_fit,mcerrlike
@@ -531,7 +532,7 @@ nstars=len(hrvs)
 if rank==0:
   print ' number of selected stars=',nstars
 
-np.random.seed(100)
+np.random.seed(10029)
 nadds=0
 dmin=0.0
 dmax=3.0
@@ -616,6 +617,7 @@ nparam=6
 modelpname=np.array(['$V_c(R_0)$','$V_{\phi,\odot}$' \
   ,'$V_{R,\odot}$','$\sigma_R(R_0)$','$X^2$','$R_0$'])
 # Bland-Hawthorn & Gerhard (2016), Vsun, V, Vrad
+# modelp0=np.array([236.0, 247.968, -9.0, 15.0, 1.0, 8.20])
 modelp0=np.array([236.0, 247.968, -9.0, 15.0, 1.0, 8.20])
 # mw39
 # modelp0=np.array([210.0, 220.0, -10.0, 30.0, 0.7, 8.0])
@@ -685,7 +687,14 @@ zpos=np.sin(glatrads)*dists
 
 np.random.seed(10000)
 
+# add dVc/dR
+# dVcdR=-3.6
+# hsig=4.0
+# hr=4.0
+
 if mocktest==True:
+  if rank==0:
+    print ' assing velocity from input parameters. Assumed dVcdR, hr, hsig =',dVcdR,hr,hsig
 # assign the velocity using the true position
 # test using mock data
 # reassign hrvs, vlons
@@ -963,22 +972,37 @@ if mcerrlike==True:
 else:
   stardata=nstars,hrvs,vlons,distxys,glonrads,errhrvs,errvlons
 
-# initial likelihood
+# Initial likelihood
 lnlikeini=lnprob(modelp,flags,fixvals,stardata)
-
-np.random.seed(1020)
 
 if rank==0:
   print ' Initial parameters=',modelp
   print ' Initial ln likelihood=',lnlikeini
+
+# anotehr trial likelihood
+modelp[2]=-8.5
+lnlikeini=lnprob(modelp,flags,fixvals,stardata)
+if rank==0:
+  print ' Initial parameters=',modelp
+  print ' Initial ln likelihood=',lnlikeini
+# anotehr trial likelihood
+modelp[2]=-8.0
+lnlikeini=lnprob(modelp,flags,fixvals,stardata)
+if rank==0:
+  print ' Initial parameters=',modelp
+  print ' Initial ln likelihood=',lnlikeini
+
+modelp[2]=modelp0[2]
+
+np.random.seed(1020)
 
 # define number of dimension for parameters
 # ndim,nwalkers=nparam,100
 ndim,nwalkers=nparam,50
 # initialise walker's position
 # pos=[modelp+1.0e-3*np.random.randn(ndim) for i in range(nwalkers)]
-# pos=[modelp+0.2*np.fabs(modelp)*np.random.randn(ndim) for i in range(nwalkers)]
-pos=[modelp+np.fabs(modelp)*(-0.05+0.1*np.random.rand(ndim)) for i in range(nwalkers)]
+pos=[modelp+0.05*np.fabs(modelp)*np.random.randn(ndim) for i in range(nwalkers)]
+# pos=[modelp+np.fabs(modelp)*(-0.05+0.1*np.random.rand(ndim)) for i in range(nwalkers)]
 
 pool=MPIPool()
 if not pool.is_master():
