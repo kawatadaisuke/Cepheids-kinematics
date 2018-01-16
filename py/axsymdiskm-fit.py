@@ -261,17 +261,17 @@ def lnprob(modelp,flags,fixvals,stardata):
 
 # flags
 # use simulation data
-# simdata=True
-simdata=False
+simdata=True
+# simdata=False
 # use simulation data selected from the observed targets
 # simdata_targets=True
 simdata_targets=False
 # mock data test using the location of input data
-# mocktest=True
-mocktest=False
+mocktest=True
+# mocktest=False
 # add V and distance error to mock data.
-# mocktest_adderr=True
-mocktest_adderr=False
+mocktest_adderr=True
+# mocktest_adderr=False
 
 # mc sampling of likelihood take into account the errors
 # mcerrlike=True
@@ -355,7 +355,8 @@ if simdata==True:
   ifile='lbsels.dat'
   # read sim data output from psy
   rdata=np.loadtxt(ifile,comments='#')
-  print 'read file ',ifile
+  if rank==0:
+    print 'read file ',ifile
   xsim=rdata[:,0]
   ysim=rdata[:,1]
   zsim=rdata[:,2]
@@ -492,11 +493,11 @@ else:
 
   # select only velocity error is small enough
   # Verrlim=5.0
-  # Verrlim=10.0
-  Verrlim=10000.0
+  Verrlim=20.0
+  # Verrlim=10000.0
   zmaxlim=0.2
   # zmaxlim=1000.0
-  distmaxlim=10.0
+  distmaxlim=4.0
   zwerr=np.power(10.0,(modv+errmodv+5.0)/5.0)*0.001*np.sin(glatradv)
   sindx=np.where((np.sqrt(errvlonv**2+errhrvv**2)<Verrlim) & \
                  (np.abs(zwerr)<zmaxlim) & \
