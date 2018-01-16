@@ -261,17 +261,17 @@ def lnprob(modelp,flags,fixvals,stardata):
 
 # flags
 # use simulation data
-simdata=True
-# simdata=False
+# simdata=True
+simdata=False
 # use simulation data selected from the observed targets
-# simdata_targets=True
-simdata_targets=False
+simdata_targets=True
+# simdata_targets=False
 # mock data test using the location of input data
 mocktest=True
 # mocktest=False
 # add V and distance error to mock data.
-mocktest_adderr=True
-# mocktest_adderr=False
+# mocktest_adderr=True
+mocktest_adderr=False
 
 # mc sampling of likelihood take into account the errors
 # mcerrlike=True
@@ -370,7 +370,7 @@ if simdata==True:
   hrvsim=rdata[:,10]
 #  agesim=rdata[:,11]
   # selection
-  zmaxlim=0.1
+  zmaxlim=0.2
   sindx=np.where(np.abs(zsim)<zmaxlim)
   # set other values
   distxys=np.sqrt(xsim[sindx]**2+ysim[sindx]**2)
@@ -401,13 +401,17 @@ elif simdata_targets==True:
   rdata=np.loadtxt(ifile,comments='#')
   if rank==0:
     print 'read file ',ifile
-#  print ' 1st line=',rdata[0,:]
-  # selection with distance
-  dmaxlim=100.0
-  sindx=np.where(rdata[:,30]<dmaxlim)
+  #  print ' 1st line=',rdata[0,:]
+  # selection need to be consistent with obs data selection
+  Verrlim=20.0
+  zmaxlim=0.2
+  distmaxlim=4.0
+  sindx=np.where((np.sqrt(rdata[:,6]**2+rdata[:,5]**2)<Verrlim) & \
+                 (np.abs(rdata[:,30]*np.sin(np.pi*rdata[:,1]/180.0))<zmaxlim) & \
+                 (rdata[:,30]<distmaxlim))
   if rank==0:
-    print ' N selected particles =',len(rdata[:,30][sindx])
-    print ' within dmaxlim =',dmaxlim
+    print ' N read and selected particles =',len(rdata[:,30]),len(rdata[:,30][sindx])
+    print ' within Verr, zmax, dmax =',Verrlim,zmaxlim,distmaxlim
   glondegs=rdata[:,0][sindx]
   glonrads=rdata[:,0][sindx]*np.pi/180.0
   glatdegs=rdata[:,1][sindx]
@@ -504,7 +508,8 @@ else:
                  (distv<distmaxlim))
 #                (distv<distmaxlim) & \
 #                (logp>0.8))
-
+  if rank==0:
+    print ' within Verr, zmax, dmax =',Verrlim,zmaxlim,distmaxlim
   hrvs=hrvv[sindx]
   vlons=vlonv[sindx]
   dists=distv[sindx]
@@ -536,7 +541,7 @@ if rank==0:
 np.random.seed(10029)
 nadds=0
 dmin=0.0
-dmax=3.0
+dmax=4.0
 if mocktest==True and nadds>0:
 # add or replace
   mock_add=False
@@ -719,17 +724,17 @@ if mocktest==True:
 # set no Verr
 #   errvlons=np.zeros(nstars)
 #   errhrvs=np.zeros(nstars)
-#  if rank==0:
+  if rank==0:
 # for test
-  filename='axsymdiskm-fit_mock_input'+str(rank)+'.asc'
-  f=open(filename,'w')
-  i=0
-  for i in range(nstars):
-    print >>f,"%f %f %f %f %f %f %f %f %f %f %f %f %f %f %f" %( \
-      xpos[i],ypos[i],zpos[i] \
-     ,glonrads[i],glatrads[i],rgals[i],vrads[i],vphs[i],angs[i] \
-     ,vxs[i],vys[i],hrvs[i],vlons[i],Vasyms[i],VcRs[i])
-  f.close()
+    filename='axsymdiskm-fit_mock_input'+str(rank)+'.asc'
+    f=open(filename,'w')
+    i=0
+    for i in range(nstars):
+      print >>f,"%f %f %f %f %f %f %f %f %f %f %f %f %f %f %f" %( \
+        xpos[i],ypos[i],zpos[i] \
+       ,glonrads[i],glatrads[i],rgals[i],vrads[i],vphs[i],angs[i] \
+       ,vxs[i],vys[i],hrvs[i],vlons[i],Vasyms[i],VcRs[i])
+    f.close()
   if rank==0:
       print ' sig rad,rank=',np.std(vrads),rank
   # set ras, decs, pmras, pmdecs
@@ -872,14 +877,14 @@ xpos=-R0+np.cos(glonrads)*distxys
 ypos=np.sin(glonrads)*distxys
 rgals=np.sqrt(xpos**2+ypos**2)
 
-# if rank==0:
-filename='input_data'+str(rank)+'.asc'
-f=open(filename,'w')
-for i in range(nstars):
-  print >>f,"%f %f %f %f %f %f %f %f %f %f" \
-    %(xpos[i],ypos[i],glonrads[i],glatrads[i],dists[i],distxys[i] \
-      ,vlons[i],hrvs[i],pmras[i],pmdecs[i])
-f.close()
+if rank==0:
+  filename='input_data'+str(rank)+'.asc'
+  f=open(filename,'w')
+  for i in range(nstars):
+    print >>f,"%f %f %f %f %f %f %f %f %f %f" \
+      %(xpos[i],ypos[i],glonrads[i],glatrads[i],dists[i],distxys[i] \
+        ,vlons[i],hrvs[i],pmras[i],pmdecs[i])
+  f.close()
 
 np.random.seed(99998)
 
