@@ -3,7 +3,7 @@
 # axsymdiskm-fit.py
 #  fitting axisymmetric disk model to Cepheids kinematics data
 #
-#  12 Jan. 2018 - written D. Kawata
+#  16 Jan. 2018 - written D. Kawata
 #
 
 import pyfits
@@ -791,9 +791,10 @@ if rank==0:
   f=open('axsymdiskm-fit_hrvvlonmean_test.asc','w')
   i=0
   for i in range(nstars):
-    print >>f,"%f %f %f %f %f %f %f %f %f %f %f %f %f %f %f %f %f" %( \
+    print >>f,"%f %f %f %f %f %f %f %f %f %f %f %f %f %f %f %f %f %f %f" %( \
       xpos[i],ypos[i],zpos[i] \
-     ,glonrads[i],rgals[i],hrvs[i],vlons[i],hrvgals[i],vlongals[i] \
+     ,glonrads[i],rgals[i],hrvs[i],vlons[i],errhrvs[i],errvlons[i] \
+     ,hrvgals[i],vlongals[i] \
      ,phis[i],Vasyms[i],hrvmeans[i],np.sqrt(hrvsig2s[i]) \
      ,vlonmeans[i],np.sqrt(vlonsig2s[i]),vradgals[i],vrotgals[i])
   f.close()
