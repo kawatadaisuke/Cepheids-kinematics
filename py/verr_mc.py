@@ -3,8 +3,12 @@
 # verr_mc.py
 #  estimating velocity error using MC sampling
 #
-#  use only Genovali+Melnik data
+# History
+#  15 May 2018 - D. Kawata
+#    combine DR2 and Genovali+Melnik data. 
 #  22 November 2017 - written D. Kawata
+#  use only Genovali+Melnik data
+#  
 #
 
 import pyfits
@@ -16,38 +20,85 @@ import matplotlib.gridspec as gridspec
 from scipy import stats
 from galpy.util import bovy_coords
 
-# read the data with velocity info.
-infile='/Users/dkawata/work/obs/Cepheids/Genovali14/G14T34+TGAS+Melnik15.fits'
-star_hdus=pyfits.open(infile)
-star=star_hdus[1].data
-star_hdus.close()
-# select stars with HRV info
-sindx=np.where(star['r_HRV']>0) 
-# number of data points
-nstarv=np.size(sindx)
-print 'number of stars from 1st file =',nstarv
-# name
-name=star['Name'][sindx]
-# extract the necessary particle info
-glonv=star['_Glon'][sindx]
-glatv=star['_Glat'][sindx]
-# rescaled Fe/H
-fehv=star['__Fe_H_'][sindx]
-modv=star['Mod'][sindx]
-distv=np.power(10.0,(modv+5.0)/5.0)*0.001
-moderrv=star['e_Mod'][sindx]
-# RA, DEC from Gaia data
-rav=star['_RA_1'][sindx]
-decv=star['_DE_1'][sindx]
-pmrav=star['pmra'][sindx]
-pmdecv=star['pmdec'][sindx]
-errpmrav=star['pmra_error'][sindx]
-errpmdecv=star['pmdec_error'][sindx]
-pmradec_corrv=star['pmra_pmdec_corr'][sindx]
-hrvv=star['HRV'][sindx]
-errhrvv=star['e_HRV'][sindx]
-logp=star['logPer'][sindx]
-photnotes=star['Notes'][sindx]
+# flag
+# GaiaData = 'DR1'
+GaiaData = 'DR2'
+
+if GaiaData == 'DR1':
+    # read the data with velocity info.
+    infile='/Users/dkawata/work/obs/Cepheids/Genovali14/G14T34+TGAS+Melnik15.fits'
+    star_hdus=pyfits.open(infile)
+    star=star_hdus[1].data
+    star_hdus.close()
+    # select stars with HRV info
+    sindx=np.where(star['r_HRV']>0) 
+    # number of data points
+    nstarv=np.size(sindx)
+    print 'number of stars from 1st file =',nstarv
+    # name
+    name=star['Name'][sindx]
+    # extract the necessary particle info
+    glonv=star['_Glon'][sindx]
+    glatv=star['_Glat'][sindx]
+    # rescaled Fe/H
+    fehv=star['__Fe_H_'][sindx]
+    modv=star['Mod'][sindx]
+    distv=np.power(10.0,(modv+5.0)/5.0)*0.001
+    moderrv=star['e_Mod'][sindx]
+    # RA, DEC from Gaia data
+    rav=star['_RA_1'][sindx]
+    decv=star['_DE_1'][sindx]
+    pmrav=star['pmra'][sindx]
+    pmdecv=star['pmdec'][sindx]
+    errpmrav=star['pmra_error'][sindx]
+    errpmdecv=star['pmdec_error'][sindx]
+    pmradec_corrv=star['pmra_pmdec_corr'][sindx]
+    hrvv=star['HRV'][sindx]
+    errhrvv=star['e_HRV'][sindx]
+    logp=star['logPer'][sindx]
+    photnotes=star['Notes'][sindx]
+else:
+    nfiles = 2
+    infile0 = '/Users/dkawata/work/obs/Cepheids/Genovali14/G14xGDR2d1xM15.fits'
+    infile1 = '/Users/dkawata/work/obs/Cepheids/Genovali14/IYCep-combinedxM15.fits'
+    star0 = pyfits.open(infile0)
+    star1 = pyfits.open(infile1)
+    nrows0 = star0[1].data.shape[0]
+    nrows1 = star1[1].data.shape[0]
+    nrows = nrows0 + nrows1
+    star_hdu = pyfits.BinTableHDU.from_columns(star0[1].columns, nrows=nrows)
+    for colname in star0[1].columns.names:
+        star_hdu.data[colname][nrows0:] = star1[1].data[colname]
+    star = star_hdu.data
+    star0.close()
+    star1.close()
+
+    # select stars with HRV info
+    sindx=np.where(star['r_HRV']>0) 
+    # number of data points
+    nstarv=np.size(sindx)
+    print 'number of selected stars file =',nstarv
+    # name
+    name=star['name'][sindx]
+    # extract the necessary particle info
+    glonv=star['l'][sindx]
+    glatv=star['b'][sindx]
+    # rescaled Fe/H
+    fehv=star['col__fe_h_'][sindx]
+    modv=star['mod'][sindx]
+    distv=np.power(10.0,(modv+5.0)/5.0)*0.001
+    moderrv=star['e_mod'][sindx]
+    # RA, DEC from Gaia data
+    rav=star['ra'][sindx]
+    decv=star['dec'][sindx]
+    pmrav=star['pmra'][sindx]
+    pmdecv=star['pmdec'][sindx]
+    errpmrav=star['pmra_error'][sindx]
+    errpmdecv=star['pmdec_error'][sindx]
+    pmradec_corrv=star['pmra_pmdec_corr'][sindx]
+    hrvv=star['HRV'][sindx]
+    errhrvv=star['e_HRV'][sindx]
+    logp=star['logper'][sindx]
 
 # use galpy RA,DEC -> Glon,Glat
 # Tlb=bovy_coords.radec_to_lb(rav,decv,degree=True,epoch=2000.0)
@@ -67,7 +118,7 @@ vlonv=pmvconst*pmlonv*distv
 vlatv=pmvconst*pmlatv*distv
 
 ### MC sampling
-nmc=1001
+nmc=10001
 # sample from proper-motion covariance matrix
 pmradec_mc=np.empty((nstarv,2,nmc))
 pmradec_mc[:,0,:]=np.atleast_2d(pmrav).T
@@ -111,6 +162,11 @@ vlat_sam=vlat_sam.reshape((nmc,nstarv))
 vlon_err=np.std(vlon_sam,axis=0)
 vlat_err=np.std(vlat_sam,axis=0)
 
+if GaiaData == 'DR1':
+    outfile = 'verr_mc.fits'
+else:
+    outfile = 'verr_mc_gdr2.fits'
+
 tbhdu = pyfits.BinTableHDU.from_columns([\
   pyfits.Column(name='Name',format='A20',array=name),\
   pyfits.Column(name='FeH',format='D',array=fehv),\
@@ -134,7 +190,7 @@ tbhdu = pyfits.BinTableHDU.from_columns([\
   pyfits.Column(name='HRV',format='D',array=hrvv), \
   pyfits.Column(name='e_HRV',format='D',array=errhrvv), \
   pyfits.Column(name='LogPer',format='D',array=logp)])
-tbhdu.writeto('verr_mc.fits',clobber=True)
+tbhdu.writeto(outfile,clobber=True)
 
 gs1=gridspec.GridSpec(2,1)
 gs1.update(left=0.15,right=0.9,bottom=0.1,top=0.95,hspace=0,wspace=0)
