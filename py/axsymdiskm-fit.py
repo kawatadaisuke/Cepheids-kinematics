@@ -237,6 +237,9 @@ def lnprior(modelp,flags,fixvals):
 # mw39
 #  omgsun_prior=220.0/8.0
 #  omgsun_prior_sig=0.12
+# BabaID2621
+#  omgsun_prior=235.0/8.0
+#  omgsun_prior_sig=0.12
 
   omgsun=Vphsun/R0
   lnp=lnp-0.5*(omgsun-omgsun_prior)**2/(omgsun_prior_sig**2)-np.log(np.sqrt(2.0*np.pi)*omgsun_prior_sig)
@@ -260,14 +263,17 @@ def lnprob(modelp,flags,fixvals,stardata):
 ##### main programme start here #####
 
 # flags
+# Gaia data version
+# GaiaData = 'DR1'
+GaiaData = 'DR2'
 # use simulation data
 # simdata=True
 simdata=False
 # use simulation data selected from the observed targets
-simdata_targets=True
-# simdata_targets=False
+# simdata_targets=True
+simdata_targets=False
 # mock data test using the location of input data
-mocktest=True
+mocktest=False
 # mocktest=False
 # add V and distance error to mock data.
 # mocktest_adderr=True
@@ -321,6 +327,7 @@ flags=hrhsig_fix,hrvsys_fit,dVcdR_fit,mcerrlike
 
 # print flags
 if rank==0:
+  print ' Gaia data version ',GaiaData
   print ' hrhsig_fix,hrvsys_fit,dVcdR_fit,mcerrlike=',flags
   print ' withverr=',withverr
   print ' simdata=',simdata
@@ -456,7 +463,10 @@ elif simdata_targets==True:
   names=map(str,rdata[:,0])
 else:
   # read verr_mc.py output
-  infile='verr_mc.fits'
+  if GaiaData == 'DR1':
+    infile='verr_mc.fits'
+  else:
+    infile='verr_mc_gdr2.fits'
   star_hdus=pyfits.open(infile)
   star=star_hdus[1].data
   star_hdus.close()
@@ -627,6 +637,8 @@ modelpname=np.array(['$V_c(R_0)$','$V_{\phi,\odot}$' \
 modelp0=np.array([236.0, 247.968, -9.0, 15.0, 1.0, 8.20])
 # mw39
 # modelp0=np.array([210.0, 220.0, -10.0, 30.0, 0.7, 8.0])
+# BabaID2621
+# modelp0=np.array([222.0, 235.0, -10.0, 20.0, 0.5, 8.0])
 # for mock
 # modelp0=np.array([230.0, 240.0, -8.0, 13.0, 0.8, 8.10])
 # mwm
@@ -646,7 +658,7 @@ if hrvsys_fit==True:
 if dVcdR_fit==True:
   nparam+=1
   modelp0=np.hstack((modelp0,-3.6))
-# mw39h10-1j
+# mw39h10-1j or BabaID2621
 #  modelp0=np.hstack((modelp0,2.0))
   modelpname=np.hstack((modelpname,'$dV_c(R_0)/dR$'))
 
@@ -696,7 +708,7 @@ np.random.seed(10000)
 # add dVc/dR
 # dVcdR=-3.6
 # hsig=4.0
-# hr=4.0
+# hr=2.0
 
 if mocktest==True:
   if rank==0:
