@@ -278,11 +278,11 @@ simdata=False
 # simdata_targets=True
 simdata_targets=False
 # mock data test using the location of input data
-mocktest=True
-# mocktest=False
+# mocktest=True
+mocktest=False
 # add V and distance error to mock data.
-mocktest_adderr=True
-# mocktest_adderr=False
+# mocktest_adderr=True
+mocktest_adderr=False
 # fit Vsun,pec rather than total Vsun
 FitVsunpec = True
 
@@ -422,7 +422,9 @@ elif simdata_targets==True:
   Verrlim=20.0
   zmaxlim=0.2
   distmaxlim=4.0
-  sindx=np.where((np.sqrt(rdata[:,6]**2+rdata[:,5]**2)<Verrlim) & \
+  errvrdata = np.sqrt(rdata[:,6]**2 \
+     +(rdata[:,5]*np.cos(rdata[:,1]*np.pi/180.0))**2)
+  sindx=np.where((errvrdata<Verrlim) & \
                  (np.abs(rdata[:,30]*np.sin(np.pi*rdata[:,1]/180.0))<zmaxlim) & \
                  (rdata[:,30]<distmaxlim))
   if rank==0:
@@ -520,10 +522,10 @@ else:
   # Verrlim=10000.0
   zmaxlim=0.2
   # zmaxlim=1000.0
-  # distmaxlim=4.0
-  distmaxlim=10.0
+  distmaxlim=4.0
+  # distmaxlim=10.0
   zwerr=np.power(10.0,(modv+errmodv+5.0)/5.0)*0.001*np.sin(glatradv)
-  sindx=np.where((np.sqrt(errvlonv**2+errhrvv**2)<Verrlim) & \
+  sindx=np.where((np.sqrt(errvlonv**2+(errhrvv*np.cos(glatradv))**2)<Verrlim) & \
                  (np.abs(zwerr)<zmaxlim) & \
                  (distv<distmaxlim))
 #                (distv<distmaxlim) & \
