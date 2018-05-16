@@ -3,7 +3,6 @@
 # axsymdiskm-fit.py
 #  fitting axisymmetric disk model to Cepheids kinematics data
 #
-#  16 Jan. 2018 - written D. Kawata
 #
 
 import pyfits
@@ -279,11 +278,11 @@ simdata=False
 # simdata_targets=True
 simdata_targets=False
 # mock data test using the location of input data
-mocktest=False
+mocktest=True
 # mocktest=False
 # add V and distance error to mock data.
-# mocktest_adderr=True
-mocktest_adderr=False
+mocktest_adderr=True
+# mocktest_adderr=False
 # fit Vsun,pec rather than total Vsun
 FitVsunpec = True
 
@@ -650,16 +649,16 @@ else:
 # Bland-Hawthorn & Gerhard (2016), Vsun, V, Vrad
 # modelp0=np.array([236.0, 247.968, -9.0, 15.0, 1.0, 8.20])
 if FitVsunpec == True:
-    modelp0=np.array([236.0, 11.0, -10.0, 15.0, 1.0, 8.20])
+    modelp0=np.array([236.0, 11.968, -9.0, 15.0, 1.0, 8.20])
 else:
     modelp0=np.array([236.0, 247.968, -9.0, 15.0, 1.0, 8.20])
 # mw39
 # modelp0=np.array([210.0, 220.0, -10.0, 30.0, 0.7, 8.0])
 # BabaID2621
-if FitVsunpec == True:
-    modelp0=np.array([222.0,  13.0, -10.0, 20.0, 0.5, 8.0])
-else:
-    modelp0=np.array([222.0, 235.0, -10.0, 20.0, 0.5, 8.0])
+# if FitVsunpec == True:
+#    modelp0=np.array([222.0,  13.0, -10.0, 20.0, 0.5, 8.0])
+# else:
+#    modelp0=np.array([222.0, 235.0, -10.0, 20.0, 0.5, 8.0])
 # for mock
 # modelp0=np.array([230.0, 240.0, -8.0, 13.0, 0.8, 8.10])
 # mwm
@@ -692,7 +691,10 @@ modelp=np.copy(modelp0)
 # this will be used for mock data velocity assignment, too.
 # it should be consistent with prior. Hence it is recommended to use the modelp0 values
 VcR0=modelp0[0]
-Vphsun=modelp0[1]
+if FitVsunpec == True:
+    Vphsun=modelp[0]+modelp[1]
+else:
+    Vphsun=modelp[1]
 Vrsun=modelp0[2]
 sigrR0=modelp0[3]
 Xsq=modelp0[4]
