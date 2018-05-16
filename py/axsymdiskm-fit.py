@@ -28,7 +28,7 @@ rank=comm.Get_rank()
 def lnlike(modelp,flags,fixvals,stardata):
 
 # read flags
-  hrhsig_fix,hrvsys_fit,dVcdR_fit,mcerrlike=flags
+  hrhsig_fix,hrvsys_fit,dVcdR_fit,mcerrlike,FitVsunpec = flags
 
   if mcerrlike==True:
     n_s,nmc,glonrad_s,glatrad_s,hrv_sam,dist_sam,vlon_sam=stardata
@@ -37,7 +37,10 @@ def lnlike(modelp,flags,fixvals,stardata):
 
 # model parameters
   VcR0=modelp[0]
-  Vphsun=modelp[1]
+  if FitVsunpec == True:
+      Vphsun=modelp[0]+modelp[1]
+  else:
+      Vphsun=modelp[1]
   Vrsun=modelp[2]
   sigrR0=modelp[3]
   Xsq=modelp[4]
@@ -173,10 +176,13 @@ def lnlike(modelp,flags,fixvals,stardata):
 def lnprior(modelp,flags,fixvals):
 
 # read flags
-  hrhsig_fix,hrvsys_fit,dVcdR_fit,mcerrlike=flags
+  hrhsig_fix,hrvsys_fit,dVcdR_fit,mcerrlike,FitVsunpec = flags
 # model parameters
   VcR0=modelp[0]
-  Vphsun=modelp[1]
+  if FitVsunpec == True:
+      Vphsun=modelp[0]+modelp[1]
+  else:
+      Vphsun=modelp[1]
   Vrsun=modelp[2]
   sigrR0=modelp[3]
   Xsq=modelp[4]
@@ -278,6 +284,8 @@ mocktest=False
 # add V and distance error to mock data.
 # mocktest_adderr=True
 mocktest_adderr=False
+# fit Vsun,pec rather than total Vsun
+FitVsunpec = True
 
 # mc sampling of likelihood take into account the errors
 # mcerrlike=True
@@ -323,7 +331,7 @@ dVcdR_fit=True
 # dVcdR_fit=False
 
 # set all flags
-flags=hrhsig_fix,hrvsys_fit,dVcdR_fit,mcerrlike
+flags=hrhsig_fix,hrvsys_fit,dVcdR_fit,mcerrlike,FitVsunpec
 
 # print flags
 if rank==0:
@@ -337,13 +345,15 @@ if rank==0:
   print ' no_moderr=',no_moderr
   print ' fixed_verr,verrfix=',fixed_verr,verrfix
   print ' fixed_moderr,moderrfix=',fixed_moderr,moderrfix
+  print ' Fit Vsun,pec = ',FitVsunpec
 
 # fixed parameter
-hr=4.0
+# use hr=hsig=20 for Ceph-kin paper
+hr=20.0
 if hrhsig_fix==True:
 # fix hsig and hr
 #  hsig=200.0
-  hsig=10.0
+  hsig=20.0
   fixvals=np.zeros(3)
   fixvals[0]=hr
   fixvals[1]=hsig
@@ -511,7 +521,8 @@ else:
   # Verrlim=10000.0
   zmaxlim=0.2
   # zmaxlim=1000.0
-  distmaxlim=4.0
+  # distmaxlim=4.0
+  distmaxlim=10.0
   zwerr=np.power(10.0,(modv+errmodv+5.0)/5.0)*0.001*np.sin(glatradv)
   sindx=np.where((np.sqrt(errvlonv**2+errhrvv**2)<Verrlim) & \
                  (np.abs(zwerr)<zmaxlim) & \
@@ -630,15 +641,25 @@ if rank==0 and nadds==0:
 # default model parameters
 nparam=6
 # initial values
-modelpname=np.array(['$V_c(R_0)$','$V_{\phi,\odot}$' \
-  ,'$V_{R,\odot}$','$\sigma_R(R_0)$','$X^2$','$R_0$'])
+if FitVsunpec == True:
+    modelpname=np.array(['$V_c(R_0)$','$V_{\phi,pec,\odot}$' \
+      ,'$V_{R,\odot}$','$\sigma_R(R_0)$','$X^2$','$R_0$'])
+else:
+    modelpname=np.array(['$V_c(R_0)$','$V_{\phi,\odot}$' \
+      ,'$V_{R,\odot}$','$\sigma_R(R_0)$','$X^2$','$R_0$'])
 # Bland-Hawthorn & Gerhard (2016), Vsun, V, Vrad
 # modelp0=np.array([236.0, 247.968, -9.0, 15.0, 1.0, 8.20])
-modelp0=np.array([236.0, 247.968, -9.0, 15.0, 1.0, 8.20])
+if FitVsunpec == True:
+    modelp0=np.array([236.0, 11.0, -10.0, 15.0, 1.0, 8.20])
+else:
+    modelp0=np.array([236.0, 247.968, -9.0, 15.0, 1.0, 8.20])
 # mw39
 # modelp0=np.array([210.0, 220.0, -10.0, 30.0, 0.7, 8.0])
 # BabaID2621
-# modelp0=np.array([222.0, 235.0, -10.0, 20.0, 0.5, 8.0])
+if FitVsunpec == True:
+    modelp0=np.array([222.0,  13.0, -10.0, 20.0, 0.5, 8.0])
+else:
+    modelp0=np.array([222.0, 235.0, -10.0, 20.0, 0.5, 8.0])
 # for mock
 # modelp0=np.array([230.0, 240.0, -8.0, 13.0, 0.8, 8.10])
 # mwm
