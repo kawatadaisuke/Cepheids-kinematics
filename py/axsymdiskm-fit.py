@@ -285,10 +285,14 @@ mocktest=False
 mocktest_adderr=False
 # fit Vsun,pec rather than total Vsun
 FitVsunpec = True
+# add systematic uncertainty to Mod 
+AddsysuncMod = True
+# 0.1 mag systematic distance modulus error
+sysuncMod = 0.1
 
 # mc sampling of likelihood take into account the errors
-# mcerrlike=True
-mcerrlike=False
+mcerrlike=True
+# mcerrlike=False
 # number of MC sample for Vlon sample
 # nmc=1000
 nmc=100
@@ -345,6 +349,8 @@ if rank==0:
   print ' fixed_verr,verrfix=',fixed_verr,verrfix
   print ' fixed_moderr,moderrfix=',fixed_moderr,moderrfix
   print ' Fit Vsun,pec = ',FitVsunpec
+  if AddsysuncMod == True:
+      print ' Add sys uncertainties to Distance Modulus by ',sysuncMod
 
 # fixed parameter
 # use hr=hsig=20 for Ceph-kin paper
@@ -867,6 +873,8 @@ if mocktest_adderr==True:
   # add distance modulus error
   if no_moderr==False:
     dmods=np.random.normal(0.0,errmods,nstars)
+    if AddsysuncMod == True:
+        dmods += np.random.normal(0.0, sysuncMod, nstars)
     # dmods=np.clip(dmods,-0.1,0.1)
     mods+=dmods
   dists=np.power(10.0,(mods+5.0)/5.0)*0.001
@@ -963,14 +971,16 @@ if mcerrlike==True:
   errmod_sam=np.tile(errmods,(nmc,1))
   if no_moderr==False:
     dmod_sam=np.random.normal(0.0,errmod_sam,(nmc,nstars))
+    if AddsysuncMod == True:
+        dmod_sam += np.random.normal(0.0, sysuncMod, (nmc,nstars))
     mod_sam+=dmod_sam
   # test output
   # if rank==0:
-  #  filename='dist_mcran'+str(rank)+'.asc'
-  #  f=open(filename,'w')
-  #  for j in range(nstars):
-  #    print >>f,"%f %f" %(errmods[j],np.std(dmod_sam[:,j]))
-  #  f.close()
+  #    filename='dist_mcran'+str(rank)+'.asc'
+  #    f=open(filename,'w')
+  #    for j in range(nstars):
+  #        print >>f,"%f %f" %(errmods[j],np.std(dmod_sam[:,j]))
+  #    f.close()
   dist_sam=np.power(10.0,(mod_sam+5.0)/5.0)*0.001
   dist_err=np.std(dist_sam,axis=0)
   # pmlonv is x cos(b) and vlat sample
