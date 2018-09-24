@@ -224,6 +224,9 @@ tanpa = np.tan(9.4 * np.pi / 180.0)
 
 # print ' ang range=',angstr14,angenr14
 
+# adding the systematic error of 0.15 mag to errmodv
+# errmodv=np.sqrt(errmodv**2+0.15**2)
+
 # MC error sampling
 nmc = 10000
 # nmc=100
@@ -463,6 +466,8 @@ print ' sindxarm=', nswarm
 uradwarm_sam = -vradv_sam[:, sindxarm].reshape(nmc, nswarm)
 vrotwarm_sam = vrotv_sam[:, sindxarm].reshape(nmc, nswarm)
 darmwarm_sam = darmv_sam[:, sindxarm].reshape(nmc, nswarm)
+dangdiffwarm_sam = dangdiffarmv_sam[:, sindxarm].reshape(nmc, nswarm)
+angdiffwarm_sam = angdiffarmv_sam[:, sindxarm].reshape(nmc, nswarm)
 
 # mean value
 
@@ -474,15 +479,26 @@ uradwarm_std = np.std(uradwarm_sam, axis=0).reshape(nswarm)
 vrotwarm_std = np.std(vrotwarm_sam, axis=0).reshape(nswarm)
 darmwarm_std = np.std(darmwarm_sam, axis=0).reshape(nswarm)
 
+dangdiffwarm_mean = np.mean(dangdiffwarm_sam, axis=0).reshape(nswarm)
+dangdiffwarm_std = np.std(dangdiffwarm_sam, axis=0).reshape(nswarm)
+angdiffwarm_mean = np.mean(angdiffwarm_sam, axis=0).reshape(nswarm)
+angdiffwarm_std = np.std(angdiffwarm_sam, axis=0).reshape(nswarm)
+
 xposwarm = xposv[sindxarm]
 yposwarm = yposv[sindxarm]
 namewarm = namev[sindxarm]
+glonwarm = glonv[sindxarm]
+glatwarm = glatv[sindxarm]
+logpwarm = logpv[sindxarm]
 # output
 f = open('CephmeanV_darm.asc', 'w')
-print >>f, "# x y darm darm_sig Umean Usig Vmean Vsig Name"
+print >>f, "# x y darm darm_sig Umean Usig Vmean Vsig LogP darm_theta darm_theta_sig thetaarm thetaarm_sig Glon Glat Name"
 for i in range(nswarm):
-    print >>f, "%f %f %f %f %f %f %f %f %s" % (
-        xposwarm[i], yposwarm[i], darmwarm_mean[i], darmwarm_std[i], uradwarm_mean[i], uradwarm_std[i], vrotwarm_mean[i], vrotwarm_std[i], namewarm[i])
+    print >>f, "%f %f %f %f %f %f %f %f %f %f %f %f %f %f %f %s" % (
+        xposwarm[i], yposwarm[i], darmwarm_mean[i], darmwarm_std[i], uradwarm_mean[i], \
+        uradwarm_std[i], vrotwarm_mean[i], vrotwarm_std[i], logpwarm[i], \
+        dangdiffwarm_mean[i],dangdiffwarm_std[i],angdiffwarm_mean[i],angdiffwarm_std[i], \
+        glonwarm[i],glatwarm[i],namewarm[i])
 f.close()
 
 

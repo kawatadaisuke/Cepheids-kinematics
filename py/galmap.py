@@ -2,19 +2,19 @@
 # 1. Read ../table3+4.fits from Genovali et al. (2014)
 # http://vizier.nao.ac.jp/viz-bin/VizieR-3?-source=J/A%2bA/566/A37/table4
 #  analyse the metallicity gradient
-# 2. Read 
+# 2. Read
 # ../G14T35+TGAS+Melnik15-Gorynya.fits which is the cross-mathed data of
 # Tables 3 and 4 of Genovali et al. (2014) metallicity
 # TGAS for proper motion
 # ../../Melnik15
-#  minus sample in G14T34+TGAS+Gorynya.fits 
+#  minus sample in G14T34+TGAS+Gorynya.fits
 # 3. Read
 #  ../G14T34+TGAS+DDO16-Melnik15-Gorynya.fits
 #  ../../DDO16 sample - Gorynya - Melnik15
 #
 # Gorynya 1992-98, from http://vizier.u-strasbg.fr/viz-bin/VizieR-3?-source=III/229&-out.max=50&-out.form=HTML%20Table&-out.add=_r&-out.add=_RAJ,_DEJ&-sort=_r&-oc.form=sexa
 # 4. Plot x-y distribution and the arros of peculiar velocity
-# 
+#
 # History:
 #  27/06/2017 include dVcdR
 #  23/06/2017 use only galpy velocities
@@ -22,8 +22,8 @@
 #  22/06/2017 add velocity dispersion profile
 #  19/06/2017 ver.3: reading 3 files for G14, Melnik15, DDO16
 #  13/03/2017 ver.2: reading both G14T35+TGAS+DDO16.fits and G14T34+TGAS+Gorynya-DDO.fits - Daisuke Kawata
-#  05/03/2017  Written - Daisuke Kawata 
-# 
+#  05/03/2017  Written - Daisuke Kawata
+#
 
 import pyfits
 import math
@@ -36,7 +36,7 @@ from galpy.util import bovy_coords
 
 # input parameters
 # input data
-infile='/Users/dkawata/work/obs/Cepheids/Genovali14/table3+4.fits'
+infile='/Users/dkawata/work/obs/Cepheids/Genovali14/G14T34.fits'
 star_hdus=pyfits.open(infile)
 star=star_hdus[1].data
 star_hdus.close()
@@ -65,7 +65,7 @@ zsun=7.25
 # Bobylev (2017)
 # usun=7.9
 # vsun=11.73
-# circular velocity 
+# circular velocity
 # Reid et al. (2014)
 vcirc=240.0
 # Jo Bovy's suggestion
@@ -130,7 +130,7 @@ plt.xticks(fontsize=18)
 plt.yticks(fontsize=18)
 plt.show()
 
-# plot circle, 
+# plot circle,
 an=np.linspace(0,2.0*np.pi,100)
 rad=7.0
 i=0
@@ -148,7 +148,7 @@ while isp<numsp:
 # angle in R14 is clock-wise start at the Sun at (0.0, Rsun)
 # convert to the one anti-clockwise starting from +x, y=0
   if isp==0:
-# Scutum Arm  
+# Scutum Arm
     angen=(180.0-3.0)*np.pi/180.0
 #    angen=(180.0+45.0)*np.pi/180.0
     angst=(180.0-101.0)*np.pi/180.0
@@ -157,7 +157,7 @@ while isp<numsp:
 # pitchangle
     tanpa=np.tan(19.8*np.pi/180.0)
   elif isp==1:
-# Sagittarius Arm  
+# Sagittarius Arm
     angen=(180.0+2.0)*np.pi/180.0
 #    angen=(180.0+45.0)*np.pi/180.0
     angst=(180.0-68.0)*np.pi/180.0
@@ -166,7 +166,7 @@ while isp<numsp:
 # pitchangle
     tanpa=np.tan(6.9*np.pi/180.0)
   else:
-# Perseus Arm  
+# Perseus Arm
     angen=(180.0-88.0)*np.pi/180.0
     angst=(180.0+21.0)*np.pi/180.0
     angref=(180.0-14.2)*np.pi/180.0
@@ -310,12 +310,12 @@ pmvconst=4.74047
 pmlonv=np.zeros(nstarv)
 pmlatv=np.zeros(nstarv)
 Tpmllbb=bovy_coords.pmrapmdec_to_pmllpmbb(pmrav,pmdecv,rav,decv,degree=True,epoch=2000.0)
-# 
+#
 pmlonv=Tpmllbb[:,0]
 pmlatv=Tpmllbb[:,1]
 # vx,vy
 distxyv=distv*np.cos(glatradv)
-# pmlonv is pmlon x cons(b) 
+# pmlonv is pmlon x cons(b)
 vlonv=pmvconst*pmlonv*distv
 vlatv=pmvconst*pmlatv*distv
 # use galpy
@@ -421,7 +421,7 @@ vyarr[0,:]=yposvpme
 vxarr[1,:]=vxvpme/100.0
 vyarr[1,:]=vyvpme/100.0
 
-# plot circle, 
+# plot circle,
 an=np.linspace(0,2.0*np.pi,100)
 rad=7.0
 i=0
@@ -443,7 +443,7 @@ while isp<numsp:
 # angle in R14 is clock-wise start at the Sun at (0.0, Rsun)
 # convert to the one anti-clockwise starting from +x, y=0
   if isp==0:
-# Scutum Arm  
+# Scutum Arm
     angen=(180.0-3.0)*np.pi/180.0
 #    angen=(180.0+45.0)*np.pi/180.0
     angst=(180.0-101.0)*np.pi/180.0
@@ -452,7 +452,7 @@ while isp<numsp:
 # pitchangle
     tanpa=np.tan(19.8*np.pi/180.0)
   elif isp==1:
-# Sagittarius Arm  
+# Sagittarius Arm
     angen=(180.0+2.0)*np.pi/180.0
 #    angen=(180.0+45.0)*np.pi/180.0
     angst=(180.0-68.0)*np.pi/180.0
@@ -461,7 +461,7 @@ while isp<numsp:
 # pitchangle
     tanpa=np.tan(6.9*np.pi/180.0)
   else:
-# Perseus Arm  
+# Perseus Arm
     angen=(180.0-88.0)*np.pi/180.0
     angst=(180.0+21.0)*np.pi/180.0
     angref=(180.0-14.2)*np.pi/180.0
@@ -501,7 +501,7 @@ while isp<numsp:
 # angle in R14 is clock-wise start at the Sun at (0.0, Rsun)
 # convert to the one anti-clockwise starting from +x, y=0
   if isp==0:
-# Scutum Arm  
+# Scutum Arm
 # pitchangle
     tanpa=np.tan(19.8*np.pi/180.0)
     rref=5.0*np.exp(tanpa*((-3.0+27.6)*np.pi/180.0))
@@ -511,7 +511,7 @@ while isp<numsp:
 # extended pitchangle
     tanpa=np.tan(5.0*np.pi/180.0)
   elif isp==1:
-# Sagittarius Arm  
+# Sagittarius Arm
 # pitchangle
     tanpa=np.tan(6.9*np.pi/180.0)
     rref=6.6*np.exp(tanpa*((+2.0+25.6)*np.pi/180.0))
@@ -537,7 +537,7 @@ while isp<numsp:
   isp+=1
 
 if plotsparm==True:
-  # plot tangent 
+  # plot tangent
   dist=6.0
   isp=0
   nsp=2
@@ -560,7 +560,7 @@ if plotsparm==True:
       plt.plot(xline,yline,'r--')
     isp+=1
 
-# velocity arrow 
+# velocity arrow
 i=0
 while i<nspme:
 # x,y,dx,dy
@@ -615,7 +615,7 @@ vradsig_r=np.sqrt(vrad2m_r-vradm_r**2)
 print ' Vrad,mean=',vradm_r
 print ' Vsig,rad=',vradsig_r
 
-# vertical velcoity 
+# vertical velcoity
 vzm_r=np.histogram(rgalpme,nrbin,(rmin,rmax),weights=vz0pme)[0]/np_r
 # square mean
 vz2m_r=np.histogram(rgalpme,nrbin,(rmin,rmax),weights=vz0pme**2)[0]/np_r
@@ -629,7 +629,7 @@ rmaxplot=11.999
 gs1=gridspec.GridSpec(3,1)
 gs1.update(left=0.15,right=0.9,bottom=0.1,top=0.95,hspace=0,wspace=0)
 
-# Vrot 
+# Vrot
 plt.subplot(gs1[0])
 # labes
 plt.ylabel(r"$\rm V_{rot}$",fontsize=18,fontname="serif",style="normal")
@@ -669,40 +669,41 @@ cbar=plt.colorbar()
 cbar.set_label(r'$\delta$[Fe/H]')
 plt.show()
 
-# rotation velocity vs. [Fe/H]
+# rotation velocity vs. delta [Fe/H]
 # subtract vcirc
 vrot0pme=vrot0pme-vcirc
 #
-fehmin=-0.3
-fehmax=0.3
-nfehbin=6
+fehmin=-0.2
+fehmax=0.2
+nfehbin=4
 # number of stars
-np_feh=np.histogram(fehvpme,nfehbin,(fehmin,fehmax))[0]
+np_feh=np.histogram(delfehvpme,nfehbin,(fehmin,fehmax))[0]
 # mean [Fe/H]
-mean_feh=np.histogram(fehvpme,nfehbin,(fehmin,fehmax),weights=fehvpme)[0]/np_feh
+mean_feh=np.histogram(delfehvpme,nfehbin,(fehmin,fehmax),weights=delfehvpme)[0]/np_feh
 # mean
-vrotm_feh=np.histogram(fehvpme,nfehbin,(fehmin,fehmax),weights=vrot0pme)[0]/np_feh
+vrotm_feh=np.histogram(delfehvpme,nfehbin,(fehmin,fehmax),weights=vrot0pme)[0]/np_feh
 # square mean
-vrot2m_feh=np.histogram(fehvpme,nfehbin,(fehmin,fehmax),weights=vrot0pme**2)[0]/np_feh
+vrot2m_feh=np.histogram(delfehvpme,nfehbin,(fehmin,fehmax),weights=vrot0pme**2)[0]/np_feh
 # dispersion
 vrotsig_feh=np.sqrt(vrot2m_feh-vrotm_feh**2)/np.sqrt(np_feh)
 print ' [Fe/H]bin,mean=',mean_feh
+print ' N [Fe/H]bin=',np_feh
 print ' Vrot,mean=',vrotm_r
 print ' Vsig,rot=',vrotsig_r
 
 # linear fit
-mfit=np.polyfit(mean_feh,vrotm_feh,1,w=1.0/vrotsig_feh)
-print ' linear regression with polyfit=',mfit
+# mfit=np.polyfit(mean_feh,vrotm_feh,1,w=1.0/vrotsig_feh)
+# print ' linear regression with polyfit=',mfit
 slope, intercept, r_value, p_value, std_err = stats.linregress(mean_feh,vrotm_feh)
 print ' slope, intercept,err =',slope,intercept,std_err
 
 # plot
-# [Fe/H] vs Vrot 
+# [Fe/H] vs Vrot
 # labes
-plt.xlabel(r"[Fe/H]",fontsize=18,fontname="serif")
+plt.xlabel(r"[Fe/H]-<[Fe/H](R)>",fontsize=18,fontname="serif")
 plt.ylabel(r"$\rm V_{rot}$",fontsize=18,fontname="serif",style="normal")
 # scatter plot
-plt.scatter(fehvpme,vrot0pme,c=delfehvpme,s=30,vmin=-0.25,vmax=0.25)
+plt.scatter(delfehvpme,vrot0pme,c=delfehvpme,s=30,vmin=-0.25,vmax=0.25)
 # hexbin plot
 # plt.hexbin(rgalpme,vrot0pme,bins='log',gridsize=300,cmap=cm.jet)
 # plot mean
@@ -713,7 +714,7 @@ xsp=np.linspace(fehmin,fehmax,nsp)
 ysp=slope*xsp+intercept
 plt.plot(xsp,ysp,'b-')
 plt.axis([-1.0,0.6,-100.0,50.0])
-cbar=plt.colorbar()
-cbar.set_label(r'$\delta$[Fe/H]')
+# cbar=plt.colorbar()
+# cbar.set_label(r'$\delta$[Fe/H]')
 
 plt.show()

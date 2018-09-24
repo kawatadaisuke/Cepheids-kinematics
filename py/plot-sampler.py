@@ -9,8 +9,8 @@ import matplotlib.pyplot as plt
 import corner
 
 
-mocktest=True
-# mocktest=False
+# mocktest=True
+mocktest=False
 
 ndim=7
 
@@ -27,11 +27,15 @@ if mocktest==True:
   print ' Mock test with reassigned velocity with true modelp=',modelp0
 
 schains=np.load('sampler-chains.npy')
+
+# print ' shape of schains =',np.shape(schains)
+
 samples=schains[:,200:,:].reshape((-1,ndim))
 
 # mean and standard deviation
 mpmean=np.zeros(ndim)
 mpstd=np.zeros(ndim)
+
 
 i=0
 while i<ndim:
@@ -44,7 +48,7 @@ modelpname=np.array(['$V_c(R_0)$','$V_{\phi,\odot}$' \
                      ,'$V_{R,\odot}$','$\sigma_R(R_0)$','$X^2$','$R_0$' \
                      ,'$dV_c(R_0)/dR$'])
 
-if mocktest==True or simdata==True:
+if mocktest==True:
   fig = corner.corner(samples, \
                       labels=modelpname,truths=modelp0, \
                       label_kwargs={"fontsize":16})

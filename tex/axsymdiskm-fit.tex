@@ -8,6 +8,7 @@
 \usepackage{hyperref}
 \input{/Users/dkawata/work/paper/journals}
 \usepackage{natbib}
+\usepackage{bm}
 \bibliographystyle{/Users/dkawata/work/paper/mnras}
 
 \textwidth=17.75cm
@@ -50,17 +51,19 @@
 
 \section{Axisymmetric disc kinematic model}
 
-Following \citet{baabbdc12}, we compute the mean and dispersion of $V_{\rm los}$ expected in an axisymmetric Galactic disc model in the Galactic rest frame, and compare with the observational data. We also compute the same values for velocity in Galactic longitude direction, $V_{\rm glon}$, and include them for likelihood function. The model assumes a Gaussian velocity dispersion in the rotation and radial direction, and zero mean radial velocity. 
+Following \citet{baabbdc12}, we compute the mean and dispersion of $V_{\rm los}$ expected in an axisymmetric Galactic disc model in the Galactic rest frame, and compare with the observational data. We also compute the same values for velocity in Galactic longitude direction, $V_{\rm glon}$, and include them for likelihood function. The model assumes a Gaussian velocity dispersion in the rotation and radial direction, which are independent from each other, and zero mean radial velocity. 
 
-In the Galactic rest frame, the mean rotation velocity at the position of the star, $\overline{V_{\phi}}$, can be projected to the line of sight velocity, $V_{\rm los}$ from the observer, i.e. the position of the Sun as $V_{\rm m,los}=\overline{V_{\phi}} \sin(\phi+l)$, where $\phi$ is the angle between the line from the Galactic centre toward Sun and the one toward the position of the star, positive in clockwise, and $l$ is Galactic longitude. Angle $\phi$ can be calculated with $\phi=sign(l-180) {\rm acos}((R_0^2+R^2-d_{xy}^2)/(2 R_0 R)$, where $R_0$ is the Galactocentric radius of the Sun, R is the Galactocentric radius of the star, and $d_{xy}$ is the distance from the Sun to the star in the plane. Similarly, the velocity dispersion in the rotation direction can be projected to the line of sight direction, like $\sigma_{\rm los, \sigma_{\phi}}=\sigma_{\phi} \sin(\phi+l)$. On the other hand, the radial velocity dispersion is projected to the line of sight direction by $\sigma_{\rm los, \sigma_{R}}=\sigma_R \sin(\phi+l)$. Then, the expected velocity dispersion for the line-of-sight direction is $\sigma_{\rm m,los}=\sqrt{\sigma_{\rm los, \sigma_{\phi}}^2+\sigma_{\rm los, \sigma_{R}}^2}=\sqrt{\sigma_R^2(1+\sin^2(\phi+l) (X^2-1))}$, where $X^2=\sigma_{\phi}^2/\sigma_{R}^2$. These are shown in Section 3.2 of \citet{baabbdc12}. In addition, we take into account the observed error of the line-of-sight velocity for $i$ star, $V_{\rm los,err,i}$. Then, the expected dispersion for star $i$ becomes $\sigma_{\rm m,los,i}=\sqrt{\sigma_R^2(1+\sin^2(\phi+l) (X^2-1))+V_{\rm los,err,i}^2}$
+In the Galactic rest frame, the mean rotation velocity at the position of the star, $\overline{V_{\phi}}$, can be projected to the line of sight velocity, $V_{\rm los}$ from the observer, i.e. the position of the Sun as $V_{\rm m,los}=\overline{V_{\phi}} \sin(\phi+l)$, where $\phi$ is the angle between the line from the Galactic centre toward Sun and the one toward the position of the star, positive in clockwise, and $l$ is Galactic longitude. Angle $\phi$ can be calculated with $\phi=sign(180-l) {\rm acos}((R_0^2+R^2-d_{xy}^2)/(2 R_0 R)$, where $R_0$ is the Galactocentric radius of the Sun, R is the Galactocentric radius of the star, and $d_{xy}$ is the distance from the Sun to the star in the plane. Similarly, the velocity dispersion in the rotation direction can be projected to the line of sight direction, like $\sigma_{\rm los, \sigma_{\phi}}=\sigma_{\phi} \sin(\phi+l)$. On the other hand, the radial velocity dispersion is projected to the line of sight direction by $\sigma_{\rm los, \sigma_{R}}=\sigma_R \cos(\phi+l)$. Then, the expected velocity dispersion for the line-of-sight direction is $\sigma_{\rm m,los}=\sqrt{\sigma_{\rm los, \sigma_{\phi}}^2+\sigma_{\rm los, \sigma_{R}}^2}=\sqrt{\sigma_R^2(1+\sin^2(\phi+l) (X^2-1))}$, where $X^2=\sigma_{\phi}^2/\sigma_{R}^2$. These are shown in Section 3.2 of \citet{baabbdc12}. 
+% In addition, we take into account the observed error of the line-of-sight velocity for $i$ star, $V_{\rm los,err,i}$. Then, the expected dispersion for star $i$ becomes $\sigma_{\rm m,los,i}=\sqrt{\sigma_R^2(1+\sin^2(\phi+l) (X^2-1))+V_{\rm los,err,i}^2}$
 
-Following the same strategy, we can derive the mean and dispersion of $V_{\rm glon}$ as follows. $V_{\rm m, glon}=\overline{V_{\phi}}\cos(\phi+l)$ and $\sigma_{\rm glon,\sigma_R}=\sigma_R \cos(\phi+1)$. Hence, $\sigma_{\rm m, glon,i}^2=\sigma_R^2(1+\cos^2(\phi+l) (X^2-1))+V_{\rm glon,err,i}^2$, where $V_{\rm glon,err,i}$ is the observational error of $V_{\rm glon}$ for star~$i$ and obtained from 1001 Monte Carlo simulation based on distance modulus error and RA and DEC proper motion errors, taking into account the correlation between RA and DEC proper motion errors, using Cholesky decomposition. 
+Following the same strategy, we can derive the mean, $V_{\rm glon}$, and dispersion, $\sigma_{\rm m, glon,i}$, in the longitudinal direction as follows. $V_{\rm m, glon}=\overline{V_{\phi}}\cos(\phi+l)$ and $\sigma_{\rm glon,\sigma_R}=\sigma_R \cos(\phi+1)$, and $\sigma_{\rm m, glon,i}^2=\sigma_R^2(1+\cos^2(\phi+l) (X^2-1))$.
+% +V_{\rm glon,err,i}^2$, where $V_{\rm glon,err,i}$ is the observational error of $V_{\rm glon}$ for star~$i$ and obtained from 1001 Monte Carlo simulation based on distance modulus error and RA and DEC proper motion errors, taking into account the correlation between RA and DEC proper motion errors, using Cholesky decomposition. 
 
 The mean rotation velocity, $\overline{V_{\phi}} (R)$, is calculated from asymmetric drift, $V_{\rm a}$ as $\overline{V_{\phi}}(R)=V_{\rm c} (R)-V_{\rm a}(R)$, where $V_c(R)$ is the circular velocity at radius, $R$. Following \citet{baabbdc12}, asymmetric drift is calculated by 
 \begin{equation}
 V_{\rm a}(R)=\frac{\sigma_R^2(R)}{2 V_{\rm c}(R)} \left[X^2-1+R\left(\frac{1}{h_R}+\frac{2}{h_{\sigma}}\right)\right].
 \end{equation}
-Here, $h_R$ and $h_{\sigma}$ are radial scale length of surface mass density and the radial scale length of the radial velocity dispersion profile, respectively. As discussed in \citet{baabbdc12}, the Galactic parameters we are interested in are not sensitive to these parameters. Hence, we fix $h_R=3.0$ and $h_{\sigma}=200$, i.e. a flat velocity dispersion. We also take into account the slope of the circular velocity at $R_0$, $d V_{\rm c}(R_0)/dR$, when we calculate $V_c(R)$. 
+Here, $h_R$ and $h_{\sigma}$ are radial scale length of surface mass density and the radial scale length of the radial velocity dispersion profile, respectively. As discussed in \citet{baabbdc12}, the Galactic parameters we are interested in are not sensitive to these parameters. Hence, we fix $h_R=3.0$ and $h_{\sigma}=10$. We also take into account the slope of the circular velocity at $R_0$, $d V_{\rm c}(R_0)/dR$, when we calculate $V_c(R)$. 
 
 In observational data, we have the line-of-sight velocity, $V_{\rm los}^{\rm helio}$, and Galactic longitudinal velocity, $V_{\rm glon}^{\rm helio}$, with respect to the Solar motion. Using the Solar radial and rotation velocities, $V_{\rm R,\odot}$ (outward motion is positive) and $V_{\rm \phi,\odot}$ (clock-wise rotation is positive, $V_{\rm \phi,\odot}=V_{\rm c}+V_{\odot}$), these velocities can be converted to the Galactic rest-frame velocities as follows.
 \begin{eqnarray}
@@ -72,24 +75,30 @@ V_{\rm o,glon} & = & V_{\rm glon}^{\rm helio} + V_{R,\odot} \sin l + V_{\rm \phi
 
 We consider the posterior probability to find the marginalised probability distribution function of our model parameters.
 \begin{equation}
- p(\theta_m=V_{\rm c}(R_0), V_{\phi,\odot}, V_{R,\odot}, \sigma_{\rm R}(R_0), X^2, R_0, V_{\rm los,sys}, dV_{\rm c}(R_0)/dR| \mathcal{D})
+ p(\theta_m=V_{\rm c}(R_0), V_{\phi,\odot}, V_{R,\odot}, \sigma_{\rm R}(R_0), X^2, R_0, dV_{\rm c}(R_0)/dR| \mathcal{D})
  = \mathcal L(\mathcal{D}|\theta_m) \times Prior,
 \end{equation} 
-where $\mathcal{D}$ describes the observational data, and $\theta_m$ corresponds to the model parameters. We run MCMC for $\ln p$. We also model a possible systematic motion of $V_{\rm los,sys}$ for the radial line-of-sight velocity, and take this into account as
+where $\mathcal{D}$ describes the observational data, and $\theta_m$ corresponds to the model parameters. We run MCMC for $\ln p$. Likelihood function is described with 
 \begin{equation}
-V_{\rm o,los} = V_{\rm los}^{\rm helio}-V_{\rm los,sys} - V_{R,\odot} \cos l + V_{\rm \phi,\odot} \sin l.
+\mathcal{L}=\prod_i^N \frac{1}{2 \pi |V_i|^{-1/2}} 
+ \exp\left(-0.5 \bm{X}^{\mathrm T}_i \bm{V}_i^{-1} \bm{X}_i \right),
 \end{equation}
-Likelihood function is described with 
+where 
 \begin{equation}
-\mathcal{L}=\prod_i^N \frac{1}{2 \pi \sigma_{\rm m,los,i} \sigma_{\rm m,los,i}} 
- \exp\left(-\frac{(V_{\rm o,los,i}-V_{\rm m,los,i})^2}{2 \sigma_{\rm m,los,i}^2}\right)
-  \exp\left(-\frac{(V_{\rm o,glon,i}-V_{\rm m,glon,i})^2}{2 \sigma_{\rm m,glon,i}^2}\right).
+\bm{X}_i= \left(
+ \begin{array}{c}
+ V_{\mathrm o,los,i}-V_{\mathrm m,los,i} \\
+ V_{\mathrm o,glon,i}-V_{\mathrm m,los,i} 
+ \end{array} \right).
 \end{equation}
+Here, $V_{\mathrm o,los,i}$ and $V_{\mathrm o,glon,i}$ are observed line-of-sight and longitudinal velocity in the Galactic rest frame for the observed star, $i$, and $V_{\mathrm m,los,i}$ and $V_{\mathrm m,glon,i}$ are expected line-of-sight and longitudinal velocity in the Galactic rest frame from the axisymmetric model at the location of the star, $i$.
+
+
 We found that $R_0$ is not well constrained by the current observational data. Hence, we introduced a Gaussian prior for $R_0$ as follows.
 \begin{equation}
  Prior(R_0)= \frac{1}{\sqrt{2 \pi \sigma_{\rm R_0,prior}}}  \exp\left(-\frac{(R_0-R_{0,prior})^2}{2 \sigma_{R_0,prior}^2}\right),
 \end{equation}
-where we set $R_{0,prior}=8.3$ and $\sigma_{R_0,prior}=0.45$ from \citep{rdggb16}.
+where we set $R_{0,prior}=8.2$ and $\sigma_{R_0,prior}=0.1$ from \citep{rdggb16}.
 
 \section{Preliminary results}
 

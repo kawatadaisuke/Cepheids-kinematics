@@ -975,12 +975,15 @@ if mcerrlike==True:
         dmod_sam += np.random.normal(0.0, sysuncMod, (nmc,nstars))
     mod_sam+=dmod_sam
   # test output
-  # if rank==0:
-  #    filename='dist_mcran'+str(rank)+'.asc'
-  #    f=open(filename,'w')
-  #    for j in range(nstars):
-  #        print >>f,"%f %f" %(errmods[j],np.std(dmod_sam[:,j]))
-  #    f.close()
+  if rank==0:
+      filename='dist_mcran'+str(rank)+'.asc'
+      f=open(filename,'w')
+      for j in range(nstars):
+          print >>f,"%f %f %f %f %f %f" %(errmods[j],np.std(dmod_sam[:,j]) \
+             ,mods[j],np.power(10.0,(mods[j]+5.0)/5.0)*0.001 \
+             ,np.power(10.0,(mods[j]+np.std(dmod_sam[:,j])+5.0)/5.0)*0.001 \
+             ,np.power(10.0,(mods[j]+errmods[j]+5.0)/5.0)*0.001)
+      f.close()
   dist_sam=np.power(10.0,(mod_sam+5.0)/5.0)*0.001
   dist_err=np.std(dist_sam,axis=0)
   # pmlonv is x cos(b) and vlat sample
