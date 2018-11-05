@@ -4,6 +4,8 @@
 #  estimating velocity error using MC sampling
 #
 # History
+#   5 November 2018 - D. Kawata
+#     add option to use new DM from Matsunaga in Nov. 2018
 #  15 May 2018 - D. Kawata
 #    combine DR2 and Genovali+Melnik data. 
 #  22 November 2017 - written D. Kawata
@@ -22,7 +24,8 @@ from galpy.util import bovy_coords
 
 # flag
 # GaiaData = 'DR1'
-GaiaData = 'DR2'
+# GaiaData = 'DR2'
+GaiaData = 'M18DsxDR2'
 
 if GaiaData == 'DR1':
     # read the data with velocity info.
@@ -34,7 +37,7 @@ if GaiaData == 'DR1':
     sindx=np.where(star['r_HRV']>0) 
     # number of data points
     nstarv=np.size(sindx)
-    print 'number of stars from 1st file =',nstarv
+    print('number of stars from 1st file =', nstarv)
     # name
     name=star['Name'][sindx]
     # extract the necessary particle info
@@ -57,7 +60,7 @@ if GaiaData == 'DR1':
     errhrvv=star['e_HRV'][sindx]
     logp=star['logPer'][sindx]
     photnotes=star['Notes'][sindx]
-else:
+elif GaiaData == 'DR2':
     nfiles = 2
     infile0 = '/Users/dkawata/work/obs/Cepheids/Genovali14/G14xGDR2d1xM15.fits'
     infile1 = '/Users/dkawata/work/obs/Cepheids/Genovali14/IYCep-combinedxM15.fits'
@@ -77,7 +80,7 @@ else:
     sindx=np.where(star['r_HRV']>0) 
     # number of data points
     nstarv=np.size(sindx)
-    print 'number of selected stars file =',nstarv
+    print('number of selected stars file =', nstarv)
     # name
     name=star['name'][sindx]
     # extract the necessary particle info
@@ -99,6 +102,39 @@ else:
     hrvv=star['HRV'][sindx]
     errhrvv=star['e_HRV'][sindx]
     logp=star['logper'][sindx]
+else:
+    # read the data with velocity info.
+    infile = '/Users/dkawata/work/obs/Cepheids/MatsunagaNov18/M18DsxGDR2xM15.fits'
+    star_hdus = pyfits.open(infile)
+    star = star_hdus[1].data
+    star_hdus.close()
+    # select stars with HRV info
+    sindx = np.where(star['r_HRV']>0) 
+    # number of data points
+    nstarv = np.size(sindx)
+    print('number of stars from 1st file =', nstarv)
+    # name
+    name = star['name'][sindx]
+    # extract the necessary particle info
+    glonv = star['l'][sindx]
+    glatv = star['b'][sindx]
+    # use no FeH
+    fehv = np.zeros_like(glonv)
+    modvstr = star['dmfinal'][sindx]
+    modv = modvstr.astype(float)
+    distv = np.power(10.0, (modv+5.0)/5.0)*0.001
+    moderrv = star['g14dmerr'][sindx]
+    # RA, DEC from Gaia data
+    rav = star['ra'][sindx]
+    decv = star['dec'][sindx]
+    pmrav = star['pmra'][sindx]
+    pmdecv = star['pmdec'][sindx]
+    errpmrav = star['pmra_error'][sindx]
+    errpmdecv = star['pmdec_error'][sindx]
+    pmradec_corrv = star['pmra_pmdec_corr'][sindx]
+    hrvv = star['HRV'][sindx]
+    errhrvv = star['e_HRV'][sindx]
+    logp = star['logp'][sindx]
 
 # use galpy RA,DEC -> Glon,Glat
 # Tlb=bovy_coords.radec_to_lb(rav,decv,degree=True,epoch=2000.0)
@@ -152,7 +188,7 @@ mod_sam=np.random.normal(modv,moderrv,(nmc,nstarv))
 dist_sam=np.power(10.0,(mod_sam+5.0)/5.0)*0.001
 dist_err=np.std(dist_sam,axis=0)
 # check shape
-print ' vlon, dist shape=',pmllbb_sam[:,:,0].shape,dist_sam.shape
+print(' vlon, dist shape=', pmllbb_sam[:,:,0]. shape, dist_sam.shape)
 # pmlonv is x cos(b) and vlat sample
 vlon_sam=pmvconst*pmllbb_sam[:,:,0].flatten()*dist_sam.flatten()
 vlon_sam=vlon_sam.reshape((nmc,nstarv))
@@ -164,8 +200,10 @@ vlat_err=np.std(vlat_sam,axis=0)
 
 if GaiaData == 'DR1':
     outfile = 'verr_mc.fits'
-else:
+elif GaiaData == 'DR2':
     outfile = 'verr_mc_gdr2.fits'
+else:
+    outfile = 'verr_mc_m18gdr2.fits'
 
 tbhdu = pyfits.BinTableHDU.from_columns([\
   pyfits.Column(name='Name',format='A20',array=name),\

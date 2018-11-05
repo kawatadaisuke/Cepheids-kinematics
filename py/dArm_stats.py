@@ -2,7 +2,6 @@
 #
 # darm_stats.py
 #
-#  20 November 2017 - written D. Kawata
 #
 
 import pyfits
@@ -129,7 +128,9 @@ if MCsample_vgalp == False:
 
 # read the data with velocity with MC error
 # read verr_mc.py output
-infile = 'verr_mc.fits'
+# infile = 'verr_mc.fits'
+# Matsunaga Nov18 DM x Gaia DR2 x Melnik15
+infile = 'verr_mc_m18gdr2.fits'
 star_hdus = pyfits.open(infile)
 star = star_hdus[1].data
 star_hdus.close()
